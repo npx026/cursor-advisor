@@ -88,7 +88,7 @@ def label(m: ModelRecord) -> str:
 
 
 # ── FALLBACK_START ────────────────────────────────────────────
-FALLBACK_DATE = "2026-04-02"
+FALLBACK_DATE = "2026-04-10"
 
 FALLBACK_MODELS: List[ModelRecord] = [
     # ── Daily drivers (request-pool, req>=1) ───────────────────
@@ -146,30 +146,61 @@ def _fetch_model_chunk() -> str:
             timeout=20,
         )
         if rsc.status_code != 200:
+            print(f"[-] RSC fetch returned HTTP {rsc.status_code}")
             return ""
     except Exception as e:
         print(f"[-] RSC fetch failed: {e}")
         return ""
 
-    # Component $L53 in the RSC tree is the model pricing table.
-    # Its I[...] reference lists the JS chunk URLs.
-    m = re.search(r'53:I\[\d+,\[([^\]]+)\]', rsc.text)
-    if not m:
+    # Strategy A: scan ALL RSC component references (N:I[...]) — not just
+    # hardcoded component 53, which changes with every Next.js build.
+    component_blocks = re.findall(r'\d+:I\[\d+,\[([^\]]*)\]', rsc.text)
+    print(f"[*] RSC payload: {len(rsc.text)} bytes, "
+          f"{len(component_blocks)} component block(s) found")
+
+    chunk_paths: List[str] = []
+    for block in component_blocks:
+        chunk_paths += re.findall(
+            r'"((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
+            block,
+        )
+
+    # Strategy B: if still nothing, scan the full RSC payload for chunk URLs.
+    if not chunk_paths:
+        print("[!] No chunk paths from component blocks — scanning full RSC payload")
+        chunk_paths = re.findall(
+            r'"((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
+            rsc.text,
+        )
+
+    seen: set = set()
+    unique_paths = [p for p in chunk_paths if not (p in seen or seen.add(p))]
+    print(f"[*] Candidate chunk URLs: {len(unique_paths)}")
+
+    if not unique_paths:
+        print("[-] No _next/static/chunks/ URLs found anywhere in RSC payload")
         return ""
 
-    chunk_paths = re.findall(
-        r'"(/docs-static/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
-        m.group(1),
-    )
+    # OR logic across 4 independent signals — tolerates single field renames.
+    _SIGNALS = ('"MODELS"', "tokenInput", "uncachedInput", "requests:")
 
-    for path in chunk_paths:
+    for path in unique_paths:
         try:
-            r = _requests.get("https://cursor.com" + path, headers=HEADERS, timeout=15)
-            if '"MODELS"' in r.text and "tokenInput" in r.text:
-                return r.text
-        except Exception:
+            r = _requests.get(
+                "https://cursor.com" + path, headers=HEADERS, timeout=15
+            )
+        except Exception as e:
+            print(f"[-] Chunk fetch failed for {path}: {e}")
             continue
 
+        hits = [s for s in _SIGNALS if s in r.text]
+        if len(hits) >= 2:
+            print(f"[+] Model chunk found: {path} (signals: {hits})")
+            return r.text
+        if hits:
+            print(f"[~] Partial signal match on {path}: {hits} — skipping")
+
+    print(f"[-] No model chunk matched among {len(unique_paths)} candidate(s)")
     return ""
 
 
