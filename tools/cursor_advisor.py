@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import json
+import random
 import re
 import sys
 import time
@@ -59,8 +60,29 @@ DOC_URL = "https://cursor.com/docs/models-and-pricing"
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-    )
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",   # omit 'br': requests doesn't handle Brotli natively
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-CH-UA": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    "Sec-CH-UA-Mobile": "?0",
+    "Sec-CH-UA-Platform": '"Linux"',
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
+
+# Headers for fetching JS chunks — adds Referer + script-fetch Sec-Fetch hints.
+CHUNK_HEADERS = {
+    **HEADERS,
+    "Referer": "https://www.cursor.com/",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-Dest": "script",
+    "Sec-Fetch-Mode": "no-cors",
 }
 
 
@@ -138,50 +160,111 @@ FALLBACK_MODELS: List[ModelRecord] = [
 #   2. Scan those chunks for the one containing the MODELS array
 #   3. Parse JS object notation with targeted regex
 
-def _get_with_retry(url: str, headers: dict, timeout: int, label: str) -> Optional[str]:
-    """GET a URL with up to 3 retries on 429; returns response text or None."""
-    for attempt in range(3):
+def _get_with_retry(
+    url: str,
+    headers: dict,
+    timeout: int,
+    label: str,
+    session: Optional[object] = None,
+    debug: bool = False,
+) -> Optional[str]:
+    """GET a URL with up to 5 retries on 429; returns response text or None.
+
+    Pass a requests.Session as *session* so cookies and TCP connections are
+    reused across calls (mirrors real browser behaviour and helps CDN auth).
+    """
+    get = (session.get if session is not None else _requests.get)
+    max_attempts = 5
+    for attempt in range(max_attempts):
         try:
-            r = _requests.get(url, headers=headers, timeout=timeout)
+            r = get(url, headers=headers, timeout=timeout)
         except Exception as e:
             print(f"[-] {label} fetch failed (attempt {attempt + 1}): {e}")
             time.sleep(2 ** attempt)
             continue
         if r.status_code == 200:
+            if debug:
+                enc = r.headers.get("Content-Encoding", "(none)")
+                ct  = r.headers.get("Content-Type",     "(none)")
+                print(f"[d] {label} — Content-Encoding: {enc}, Content-Type: {ct}, "
+                      f"raw len: {len(r.content)}, text len: {len(r.text)}")
             return r.text
         if r.status_code == 429:
-            wait = int(r.headers.get("Retry-After", 2 ** (attempt + 2)))
+            # Respect Retry-After if present; otherwise use exponential backoff
+            # with a 15 s minimum and 120 s cap to survive aggressive CDN limits.
+            retry_after = int(r.headers.get("Retry-After", 0))
+            backoff = min(120, 15 * (2 ** attempt))
+            wait = max(retry_after, backoff)
             print(f"[-] {label} rate-limited (429) — waiting {wait}s "
-                  f"(attempt {attempt + 1}/3)")
+                  f"(attempt {attempt + 1}/{max_attempts})")
             time.sleep(wait)
         else:
             print(f"[-] {label} returned HTTP {r.status_code}")
             return None
-    print(f"[-] {label} failed after 3 attempts")
+    print(f"[-] {label} failed after {max_attempts} attempts")
     return None
 
 
-def _fetch_model_chunk() -> str:
-    """Return raw JS source of the chunk with MODELS data, or '' on failure."""
-    chunk_paths: List[str] = []
+def _fetch_model_chunk(debug: bool = False) -> str:
+    """Return raw JS source of the chunk with MODELS data, or '' on failure.
 
-    # ── Strategy A: plain HTML fetch (no special headers) ────────────
-    # A normal browser GETs the HTML page first; chunk URLs appear in
-    # <script src="/_next/static/chunks/..."> tags.  This avoids the
-    # RSC-specific headers (RSC: 1, Next-Router-Prefetch: 1) that bot
-    # filters flag and rate-limit aggressively.
-    html = _get_with_retry(DOC_URL, HEADERS, 20, "HTML page")
+    Uses a single requests.Session for all HTTP calls so that cookies set by
+    the initial HTML page request (CDN auth, bot-detection tokens, etc.) are
+    automatically included in every subsequent chunk fetch — mirroring what a
+    real browser does.
+    """
+    chunk_paths: List[str] = []
+    session = _requests.Session()
+
+    # ── Strategy A: plain HTML fetch ─────────────────────────────────
+    # A normal browser GETs the HTML page first.  Chunk URLs appear in
+    # <script src>, <link href>, and in inline Next.js chunk maps embedded
+    # inside <script> bodies — we scan the whole HTML text for any quoted
+    # /_next/static/chunks/ reference rather than requiring src= only.
+    html = _get_with_retry(DOC_URL, HEADERS, 20, "HTML page",
+                           session=session, debug=debug)
     if html:
         print(f"[*] HTML page: {len(html)} bytes")
-        chunk_paths = re.findall(
-            r'src="((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
+        if debug:
+            print(f"[d] HTML preview: {html[:300]!r}")
+        chunk_paths = list(dict.fromkeys(re.findall(
+            r'"((?:/docs-static)?/_next/static/chunks/[^"?]+\.js(?:\?[^"]*)?)"',
             html,
-        )
-        print(f"[*] Chunk URLs from HTML <script> tags: {len(chunk_paths)}")
+        )))
+        print(f"[*] Chunk URLs from HTML: {len(chunk_paths)}")
 
-    # ── Strategy B: RSC payload scan (fallback if HTML had no chunks) ─
-    # Next.js RSC responses embed I[id,[...]] component references that
-    # list chunk URLs, and also contain free-form chunk path strings.
+        # ── Strategy A2: build manifest (when HTML has no direct chunk refs) ──
+        # Next.js embeds the buildId in __NEXT_DATA__ or in static asset paths.
+        # The build manifest at /_next/static/<buildId>/_buildManifest.js lists
+        # every chunk the app ships, making it a reliable second source.
+        if not chunk_paths:
+            print("[!] No chunks in HTML body — trying build manifest")
+            bid_m = (re.search(r'"buildId"\s*:\s*"([^"]+)"', html) or
+                     re.search(r'/_next/static/([A-Za-z0-9_-]{6,})/', html))
+            if bid_m:
+                build_id = bid_m.group(1)
+                manifest_url = (f"https://cursor.com/_next/static/"
+                                f"{build_id}/_buildManifest.js")
+                manifest = _get_with_retry(
+                    manifest_url, CHUNK_HEADERS, 15, "build manifest",
+                    session=session, debug=debug,
+                )
+                if manifest:
+                    chunk_paths = list(dict.fromkeys(re.findall(
+                        r'"(/_next/static/chunks/[^"]+\.js)"',
+                        manifest,
+                    )))
+                    print(f"[*] Chunk URLs from build manifest: {len(chunk_paths)}")
+
+        # Pause briefly so the chunk requests don't look like an instant bot hit.
+        if chunk_paths:
+            delay = random.uniform(2.0, 5.0)
+            print(f"[*] Pausing {delay:.1f}s before fetching chunks …")
+            time.sleep(delay)
+
+    # ── Strategy B: RSC payload scan (last resort) ────────────────────
+    # RSC headers are aggressively rate-limited on GitHub Actions IPs, so
+    # this path is only attempted when Strategy A (and A2) both produce nothing.
     if not chunk_paths:
         print("[!] No chunks from HTML — trying RSC payload")
         rsc_text = _get_with_retry(
@@ -189,10 +272,14 @@ def _fetch_model_chunk() -> str:
             {**HEADERS, "RSC": "1", "Next-Router-Prefetch": "1"},
             20,
             "RSC payload",
+            session=session,
+            debug=debug,
         )
         if not rsc_text:
             return ""
         print(f"[*] RSC payload: {len(rsc_text)} bytes")
+        if debug:
+            print(f"[d] RSC preview: {rsc_text[:300]!r}")
         # Scan all N:I[...] component blocks
         for block in re.findall(r'\d+:I\[\d+,\[([^\]]*)\]', rsc_text):
             chunk_paths += re.findall(
@@ -219,7 +306,8 @@ def _fetch_model_chunk() -> str:
 
     for path in unique_paths:
         text = _get_with_retry(
-            "https://cursor.com" + path, HEADERS, 15, f"chunk {path}"
+            "https://cursor.com" + path, CHUNK_HEADERS, 15, f"chunk {path}",
+            session=session, debug=debug,
         )
         if text is None:
             continue
@@ -273,11 +361,12 @@ def _parse_js_models(js: str) -> List[ModelRecord]:
         if not model_id or not provider:
             continue
 
-        disp_name = _str(entry, "name") or ""
-        is_max    = _bool(entry, "isMax") or False
-        is_hidden = _bool(entry, "hidden") or False
-        req_n     = _num(entry, "requests") or 0.0
-        itier     = _str(entry, "intelligenceTier") or "moderate"
+        disp_name    = _str(entry, "name") or ""
+        is_max       = _bool(entry, "isMax") or False
+        is_hidden    = _bool(entry, "hidden") or False
+        is_free_prev = _bool(entry, "isFreePreview") or _bool(entry, "freePreview") or False
+        req_n        = _num(entry, "requests") or 0.0
+        itier        = _str(entry, "intelligenceTier") or "moderate"
 
         # Token pricing (uncachedInput preferred over tokenInput for input cost)
         in_price  = _num(entry, "uncachedInput") or _num(entry, "tokenInput") or 0.0
@@ -320,6 +409,7 @@ def _parse_js_models(js: str) -> List[ModelRecord]:
             request_price=request_price,
             is_max_only=is_max_only,
             is_daily_driver=is_daily_driv,
+            is_free_preview=bool(is_free_prev),
             is_hidden=bool(is_hidden),
             intelligence_tier=itier,
             provider=provider,
@@ -448,6 +538,7 @@ def write_json_output(models: List[ModelRecord], source: str, date_str: str, pat
                 "requestPrice":     m.request_price,
                 "isMaxOnly":        m.is_max_only,
                 "isDailyDriver":    m.is_daily_driver,
+                "isFreePreview":    m.is_free_preview,
                 "isHidden":         m.is_hidden,
                 "intelligenceTier": m.intelligence_tier,
                 "provider":         m.provider,
@@ -465,7 +556,7 @@ def write_json_output(models: List[ModelRecord], source: str, date_str: str, pat
 
 def get_models(debug: bool = False) -> Tuple[List[ModelRecord], str]:
     print(f"[*] Fetching live model data from {DOC_URL} ...")
-    chunk_js = _fetch_model_chunk()
+    chunk_js = _fetch_model_chunk(debug=debug)
 
     if debug and chunk_js:
         m = re.search(r'"MODELS",0,\[', chunk_js)
@@ -756,6 +847,89 @@ def print_api_pool(models: List[ModelRecord]) -> None:
             )
 
 
+# ── Plan Mode (request-pool recommendations) ─────────────────────────
+
+def print_plan_mode_section(models: List[ModelRecord]) -> None:
+    """Recommend request-pool models for Cursor Plan Mode with a Max Mode cost comparison."""
+    print(f"\n{_bold('=' * 62)}")
+    print(_bold("PLAN MODE — Recommendations"))
+    print(f"{'=' * 62}")
+    print(
+        "Plan Mode runs on the request pool — using a request-pool model\n"
+        "avoids per-token Max Mode billing.\n"
+    )
+
+    heavy = next((t for t in TASKS if t["key"] == "heavy"), TASKS[0])
+
+    # ── Request-pool picks ────────────────────────────────────────────
+    drivers = [m for m in models if m.is_daily_driver and not m.is_hidden]
+    if not drivers:
+        print("  (No visible request-pool models in current data.)")
+    else:
+        tier_rank = {"frontier": 0, "high": 1, "moderate": 2}
+        # Best: highest intelligence, tiebreak by provider then cheapest
+        best = min(drivers, key=lambda m: (
+            tier_rank.get(m.intelligence_tier, 9),
+            _PROVIDER_RANK.get(m.provider, 9),
+            m.request_price or REQUESTS_FLAT_RATE,
+        ))
+        # Value: best high-tier at lowest cost; exclude Best
+        value_candidates = [m for m in drivers if m is not best
+                            and m.intelligence_tier in ("frontier", "high")]
+        value = (min(value_candidates, key=lambda m: (
+            m.request_price or REQUESTS_FLAT_RATE,
+            tier_rank.get(m.intelligence_tier, 9),
+        )) if value_candidates else None)
+        # Best-for-value: lowest cost among intelligence >= "high", excluding above
+        bv_candidates = [m for m in drivers
+                         if m not in (best, value)
+                         and m.intelligence_tier in ("frontier", "high")]
+        best_val = (min(bv_candidates, key=lambda m: (
+            m.request_price or REQUESTS_FLAT_RATE,
+            tier_rank.get(m.intelligence_tier, 9),
+        )) if bv_candidates else None)
+
+        print(f"  {'─' * 56}")
+        print(f"  {'Label':<12} {'Model':<28} {'Tier':<10} {'$/req':<8}  Budget sessions")
+        print(f"  {'─' * 56}")
+
+        def _plan_row(tag: str, m: ModelRecord) -> None:
+            cost = m.request_price or REQUESTS_FLAT_RATE
+            cr = int(cost / REQUESTS_FLAT_RATE)
+            incl_sessions = int(PREMIUM_REQUESTS / cr)
+            odm_sessions  = int(ON_DEMAND_BUDGET / cost)
+            credits_note = f"{cr} credit{'s' if cr > 1 else ''}"
+            print(f"  {tag:<12} {label(m):<28} {m.intelligence_tier:<10} "
+                  f"${cost:.2f}    "
+                  f"{incl_sessions:,} incl + {odm_sessions:,} on-demand  ({credits_note})")
+
+        _plan_row("Best",        best)
+        if value:
+            _plan_row("Value",   value)
+        if best_val:
+            _plan_row("Best/val", best_val)
+
+    # ── Max Mode comparison ───────────────────────────────────────────
+    max_models = [m for m in models if m.is_max_only and not m.is_hidden]
+    if max_models:
+        cheapest_max = min(max_models,
+                           key=lambda m: cost_per_request(m, heavy["in"], heavy["out"]))
+        priciest_max = max(max_models,
+                           key=lambda m: cost_per_request(m, heavy["in"], heavy["out"]))
+        c_cheap = cost_per_request(cheapest_max, heavy["in"], heavy["out"])
+        c_pricey = cost_per_request(priciest_max, heavy["in"], heavy["out"])
+        mult_cheap  = c_cheap  / REQUESTS_FLAT_RATE if REQUESTS_FLAT_RATE > 0 else 0
+        mult_pricey = c_pricey / REQUESTS_FLAT_RATE if REQUESTS_FLAT_RATE > 0 else 0
+        print(f"\n  {_ylw('⚠  Max Mode comparison (per-token billing):')}")
+        print(f"  Selecting a Max Mode model in Plan Mode activates per-token billing.")
+        print(f"  {label(cheapest_max)}: ~${c_cheap:.3f}/session "
+              f"({_ylw(f'{mult_cheap:.1f}x')} vs request-pool)")
+        if priciest_max is not cheapest_max:
+            print(f"  {label(priciest_max)}: ~${c_pricey:.3f}/session "
+                  f"({_ylw(f'{mult_pricey:.1f}x')} vs request-pool)")
+        print(f"  {_dim('Use a request-pool model in Plan Mode to stay within your credit budget.')}")
+
+
 # ── Max Mode (enhanced with cost comparison) ─────────────────────────
 
 def print_max_mode_section(models: List[ModelRecord]) -> None:
@@ -847,6 +1021,7 @@ def main() -> None:
     _print_header(source)
     print_tldr(models)
     print_request_pool(models)
+    print_plan_mode_section(models)
     print_api_pool(models)
     print_max_mode_section(models)
     print()

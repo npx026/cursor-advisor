@@ -2,7 +2,7 @@ name: Update Cursor Model Data
 
 on:
   schedule:
-    - cron: '0 6 * * 1'   # Every Monday 06:00 UTC
+    - cron: '37 14 * * 2'  # Every Tuesday 14:37 UTC (low-traffic window)
   workflow_dispatch:        # Manual trigger from Actions tab
 
 permissions:
@@ -21,6 +21,12 @@ jobs:
 
       - name: Install dependencies
         run: pip install requests
+
+      - name: Jitter delay
+        run: |
+          DELAY=$(( RANDOM % 90 + 30 ))
+          echo "Waiting ${DELAY}s to avoid predictable request timing …"
+          sleep "$DELAY"
 
       - name: Fetch model data and write JSON
         run: python tools/cursor_advisor.py --json-output models.json --no-color
