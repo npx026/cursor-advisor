@@ -428,6 +428,150 @@ main {
 }
 
 /* --------------------------------------------------------------------------
+   Quick Guide — Scenario Cards
+   -------------------------------------------------------------------------- */
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.scenario-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scenario-card.is-recommended {
+  border-color: var(--accent);
+  background: var(--accent-glow2);
+}
+
+.scenario-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.scenario-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.scenario-card.is-recommended .scenario-label {
+  color: var(--accent-light);
+}
+
+.scenario-examples {
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  line-height: 1.4;
+}
+
+.scenario-model {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.scenario-detail {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.scenario-billing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.125rem;
+}
+
+.scenario-budget {
+  font-size: 0.76rem;
+  color: var(--text-subtle);
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   Credit Pills
+   -------------------------------------------------------------------------- */
+.credit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.credit-pill--1 {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+html.light-theme .credit-pill--1 {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.10);
+}
+
+.credit-pill--2 {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warn);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.credit-pill--multi {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.credit-pill--maxmode {
+  background: rgba(139, 92, 246, 0.12);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+html.light-theme .credit-pill--maxmode {
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.10);
+}
+
+/* --------------------------------------------------------------------------
+   Credits column in Request Pool table
+   -------------------------------------------------------------------------- */
+.credits-cell {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.credit-budget {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  margin-top: 0.2rem;
+}
+
+/* --------------------------------------------------------------------------
    Tables (shared)
    -------------------------------------------------------------------------- */
 .table-scroll {
@@ -654,6 +798,10 @@ main {
     grid-template-columns: 1fr 1fr;
   }
 
+  .scenario-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .advisor-card-body {
     padding: 1rem;
   }
@@ -677,6 +825,10 @@ main {
   }
 
   .tldr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-grid {
     grid-template-columns: 1fr;
   }
 

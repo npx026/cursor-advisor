@@ -167,68 +167,102 @@
     return `<span class="tier-badge ${cls}">${tier}</span>`;
   }
 
-  // ── Render: TL;DR ─────────────────────────────────────────────────────────
+  // ── Credit helpers ─────────────────────────────────────────────────────────
+  function creditsPerReq(model, cfg) {
+    if (model.requestPrice === null) return null;
+    return Math.round((model.requestPrice ?? cfg.flatRate) / cfg.flatRate);
+  }
+
+  function creditPill(credits) {
+    if (credits === 1) return `<span class="credit-pill credit-pill--1">&#9679;&thinsp;1 credit</span>`;
+    if (credits === 2) return `<span class="credit-pill credit-pill--2">&#9679;&#9679;&thinsp;2 credits</span>`;
+    return `<span class="credit-pill credit-pill--multi">&#9679;&times;${credits} credits</span>`;
+  }
+
+  // ── Render: Quick Guide (3 task scenarios) ───────────────────────────────
   function renderTldr(models, cfg) {
-    const heavy       = TASKS.find(t => t.key === 'heavy') || TASKS[0];
-    const bestVisible = pickBestDriver(models, false, cfg);
-    const bestHidden  = pickBestDriver(models, true, cfg);
-    const moderates   = models.filter(m => m.isDailyDriver && m.intelligenceTier === 'moderate');
-    const budgetPick  = moderates.length
-      ? moderates.reduce((b, m) => {
-          const ra = m.requestPrice ?? cfg.flatRate, rb = b.requestPrice ?? cfg.flatRate;
-          if (ra !== rb) return ra < rb ? m : b;
-          return (m.inPrice + m.outPrice) < (b.inPrice + b.outPrice) ? m : b;
-        })
-      : null;
-    const maxCandidates = models.filter(m => m.isMaxOnly && !m.isHidden);
-    const maxPick = maxCandidates.length
-      ? maxCandidates.reduce((b, m) => costPerRequest(m, heavy.in, heavy.out, cfg) < costPerRequest(b, heavy.in, heavy.out, cfg) ? m : b)
-      : null;
+    const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
 
-    const totalCredits = cfg.premiumRequests + Math.floor(cfg.onDemandBudget / cfg.flatRate);
+    // Plan: best visible frontier Max Mode model → any visible Max Mode → best driver
+    const maxVisible = models.filter(m => m.isMaxOnly && !m.isHidden).sort(cmpTierKey);
+    const planModel  = maxVisible[0] || pickBestDriver(models, false, cfg);
 
-    function itemHtml(label, model, isRec, extra) {
+    // Build: best visible daily driver
+    const buildModel = pickBestDriver(models, false, cfg);
+
+    // Quick Edit: cheapest daily driver; on tie prefer lower intelligence (moderate > high)
+    const allDrivers = models.filter(m => m.isDailyDriver);
+    const minPrice   = allDrivers.length ? Math.min(...allDrivers.map(m => m.requestPrice ?? cfg.flatRate)) : cfg.flatRate;
+    const editModel  = allDrivers.filter(m => (m.requestPrice ?? cfg.flatRate) === minPrice).reduce((best, m) => {
+      // Higher TIER_RANK number = less capable = preferred for quick edits
+      return (TIER_RANK[m.intelligenceTier] ?? 9) > (TIER_RANK[best.intelligenceTier] ?? 9) ? m : best;
+    }, allDrivers.find(m => (m.requestPrice ?? cfg.flatRate) === minPrice) || buildModel);
+
+    const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
+
+    function scenarioCard(scenario, exampleUses, model, isRec) {
       if (!model) return '';
-      const cost = model.requestPrice !== null
-        ? fmtCost(model.requestPrice) + '/req'
-        : fmtCost(costPerRequest(model, heavy.in, heavy.out, cfg)) + '/req';
+      const isMax = !!model.isMaxOnly;
+
+      // Cost displayed
+      const price  = isMax
+        ? costPerRequest(model, heavy.in, heavy.out, cfg)
+        : (model.requestPrice ?? cfg.flatRate);
+      const costStr = fmtCost(price) + '/req';
+
+      // Billing block under the cost line
+      let billingHtml;
+      if (isMax) {
+        const reqs = price > 0 ? Math.floor(cfg.onDemandBudget / price) : 0;
+        const mult = cfg.flatRate > 0 ? (price / cfg.flatRate).toFixed(1) : '?';
+        billingHtml = `
+          <span class="credit-pill credit-pill--maxmode">Max Mode &middot; per-token</span>
+          <div class="scenario-budget">~${reqs.toLocaleString()} reqs for $${cfg.onDemandBudget.toFixed(0)} &middot; ${mult}&times; vs driver</div>`;
+      } else {
+        const cr      = creditsPerReq(model, cfg) || 1;
+        const inclR   = Math.floor(cfg.premiumRequests / cr);
+        const ondemR  = Math.floor(cfg.onDemandBudget / (model.requestPrice ?? cfg.flatRate));
+        billingHtml = `
+          ${creditPill(cr)}
+          <div class="scenario-budget">${inclR.toLocaleString()} incl + ${ondemR.toLocaleString()} on-demand reqs</div>`;
+      }
+
+      const hiddenId = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
+
       return `
-        <div class="tldr-item ${isRec ? 'is-recommended' : ''}">
-          <div class="tldr-item-label">${label}</div>
-          <div class="tldr-item-name">${modelLabel(model)}</div>
-          <div class="tldr-item-detail">
-            <strong>${cost}</strong>
-            ${tierBadge(model.intelligenceTier)}
-            ${model.isHidden ? `<span class="model-id">${model.name}</span>` : ''}
+        <div class="scenario-card${isRec ? ' is-recommended' : ''}">
+          <div class="scenario-header">
+            <span class="scenario-label">${scenario}</span>
+            <span class="scenario-examples">${exampleUses}</span>
           </div>
-          ${extra || ''}
+          <div class="scenario-model">${modelLabel(model)}${hiddenId}</div>
+          <div class="scenario-detail">
+            <strong>${costStr}</strong>
+            ${tierBadge(model.intelligenceTier)}
+          </div>
+          <div class="scenario-billing">${billingHtml}</div>
         </div>`;
     }
 
-    let maxExtra = '';
-    if (maxPick) {
-      const mc   = costPerRequest(maxPick, heavy.in, heavy.out, cfg);
-      const mult = (mc / cfg.flatRate).toFixed(1);
-      maxExtra = `<div class="tldr-warning">${mult}× vs driver</div>`;
-    }
+    const planIsMax   = planModel?.isMaxOnly;
+    const buildCr     = buildModel ? (creditsPerReq(buildModel, cfg) || 1) : 1;
+    const buildInclR  = buildModel ? Math.floor(cfg.premiumRequests / buildCr) : 0;
+    const buildOndemR = buildModel ? Math.floor(cfg.onDemandBudget / (buildModel.requestPrice ?? cfg.flatRate)) : 0;
 
     const el = document.getElementById('section-tldr');
     if (!el) return;
     el.innerHTML = `
-      <div class="tldr-grid">
-        ${itemHtml('Best daily driver', bestVisible, true)}
-        ${itemHtml('Best hidden driver', bestHidden, false)}
-        ${itemHtml('Budget pick', budgetPick, false)}
-        ${itemHtml('Max Mode pick', maxPick, false, maxExtra)}
+      <div class="scenario-grid">
+        ${scenarioCard('Plan',       'Architecture &middot; complex debug &middot; refactor', planModel,  false)}
+        ${scenarioCard('Build',      'Features &middot; code review &middot; implement',       buildModel, true)}
+        ${scenarioCard('Quick Edit', 'Small fixes &middot; explain &middot; rename',           editModel,  false)}
       </div>
       <div class="tldr-budget-line">
-        Total budget: <strong>${cfg.premiumRequests.toLocaleString()} included</strong>
-        + <strong>${Math.floor(cfg.onDemandBudget / cfg.flatRate).toLocaleString()} on-demand</strong>
-        = <strong>${totalCredits.toLocaleString()} requests</strong>
-        at ${fmtCost(cfg.flatRate)}/req.
-      </div>
-      <div class="tldr-warning" style="margin-top:0.5rem">
-        Max Mode costs 2–20× more per request — use only when drivers aren't enough.
+        Request pool: <strong>${cfg.premiumRequests.toLocaleString()} included credits</strong>
+        + <strong>${budgetCredits.toLocaleString()} on-demand credits</strong>
+        = <strong>${buildInclR.toLocaleString()} + ${buildOndemR.toLocaleString()} Build-tier requests</strong>
+        at ${fmtCost(cfg.flatRate)}/credit.
+        ${planIsMax ? `<span class="tldr-warning" style="display:inline;margin-left:0.25rem">Plan uses Max Mode — billed per-token from your $${cfg.onDemandBudget.toFixed(0)} budget, not from the credit pool.</span>` : ''}
       </div>`;
   }
 
@@ -255,9 +289,9 @@
       group.forEach((m, i) => {
         const isRec = m === rec;
         const cost  = fmtCost(m.requestPrice ?? cfg.flatRate);
-        const note  = (m.requestPrice && m.requestPrice > cfg.flatRate)
-          ? `${Math.round(m.requestPrice / cfg.flatRate)} credits`
-          : '';
+        const cr    = creditsPerReq(m, cfg) || 1;
+        const inclR = Math.floor(cfg.premiumRequests / cr);
+        const odmR  = Math.floor(cfg.onDemandBudget / (m.requestPrice ?? cfg.flatRate));
         const nameCell = m.isHidden
           ? `${modelLabel(m)} <span class="model-id">(${m.name})</span>`
           : modelLabel(m);
@@ -269,7 +303,7 @@
             </td>
             <td class="cost-cell">${cost}</td>
             <td>${tierBadge(m.intelligenceTier)}</td>
-            <td class="note-cell">${note}</td>
+            <td class="credits-cell">${creditPill(cr)}<span class="credit-budget">${inclR.toLocaleString()} + ${odmR.toLocaleString()} reqs</span></td>
           </tr>`;
       });
     }
@@ -283,15 +317,15 @@
           <td class="model-cell">${modelLabel(m)}</td>
           <td class="cost-cell" style="color:var(--warn)">free</td>
           <td>${tierBadge(m.intelligenceTier)}</td>
-          <td class="note-cell" style="color:var(--warn)">FREE PREVIEW — pricing may change</td>
+          <td class="credits-cell" style="color:var(--warn)">FREE PREVIEW — pricing may change</td>
         </tr>`).join('');
     }
 
     const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
     el.innerHTML = `
       <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem">
-        All models below bill at a flat rate from your request pool.
-        ${fmtCost(cfg.flatRate)}/credit — 2-credit models cost ${fmtCost(cfg.flatRate * 2)}.
+        All models below bill at a flat rate from your request pool at ${fmtCost(cfg.flatRate)}/credit.
+        <strong style="color:var(--text)">&#9679;&#9679; 2-credit</strong> models cost ${fmtCost(cfg.flatRate * 2)}/req and halve your effective budget.
         Disable <strong style="color:var(--text)">Auto</strong> routing to control credit spend.
       </p>
       <div class="table-scroll">
@@ -302,7 +336,7 @@
               <th>Model</th>
               <th>$/req</th>
               <th>Tier</th>
-              <th>Notes</th>
+              <th>Credits &amp; Budget</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
