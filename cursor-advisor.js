@@ -94,13 +94,13 @@
 
   // ── Config helpers ────────────────────────────────────────────────────────
   function getConfig() {
-    function num(id, def) {
+    function num(id, def, allowZero = false) {
       const v = parseFloat(document.getElementById(id)?.value);
-      return isFinite(v) && v > 0 ? v : def;
+      return isFinite(v) && (allowZero ? v >= 0 : v > 0) ? v : def;
     }
     return {
-      premiumRequests:  num('cfg-premium-req',  500),
-      onDemandBudget:   num('cfg-budget',        20),
+      premiumRequests:  num('cfg-premium-req',  500, true),
+      onDemandBudget:   num('cfg-budget',        20, true),
       flatRate:         num('cfg-flat-rate',    0.04),
       overhead:         num('cfg-overhead',     1.20),
     };
