@@ -89,7 +89,7 @@ def label(m: ModelRecord) -> str:
 
 
 # ── FALLBACK_START ────────────────────────────────────────────
-FALLBACK_DATE = "2026-04-10"
+FALLBACK_DATE = "2026-04-11"
 
 FALLBACK_MODELS: List[ModelRecord] = [
     # ── Daily drivers (request-pool, req>=1) ───────────────────
@@ -138,81 +138,96 @@ FALLBACK_MODELS: List[ModelRecord] = [
 #   2. Scan those chunks for the one containing the MODELS array
 #   3. Parse JS object notation with targeted regex
 
-def _fetch_model_chunk() -> str:
-    """Return raw JS source of the chunk with MODELS data, or '' on failure."""
-    rsc = None
+def _get_with_retry(url: str, headers: dict, timeout: int, label: str) -> Optional[str]:
+    """GET a URL with up to 3 retries on 429; returns response text or None."""
     for attempt in range(3):
         try:
-            rsc = _requests.get(
-                DOC_URL,
-                headers={**HEADERS, "RSC": "1", "Next-Router-Prefetch": "1"},
-                timeout=20,
-            )
+            r = _requests.get(url, headers=headers, timeout=timeout)
         except Exception as e:
-            print(f"[-] RSC fetch failed (attempt {attempt + 1}): {e}")
+            print(f"[-] {label} fetch failed (attempt {attempt + 1}): {e}")
             time.sleep(2 ** attempt)
             continue
-
-        if rsc.status_code == 200:
-            break
-        if rsc.status_code == 429:
-            retry_after = int(rsc.headers.get("Retry-After", 2 ** (attempt + 2)))
-            print(f"[-] RSC fetch rate-limited (429) — waiting {retry_after}s "
+        if r.status_code == 200:
+            return r.text
+        if r.status_code == 429:
+            wait = int(r.headers.get("Retry-After", 2 ** (attempt + 2)))
+            print(f"[-] {label} rate-limited (429) — waiting {wait}s "
                   f"(attempt {attempt + 1}/3)")
-            time.sleep(retry_after)
+            time.sleep(wait)
         else:
-            print(f"[-] RSC fetch returned HTTP {rsc.status_code}")
-            return ""
+            print(f"[-] {label} returned HTTP {r.status_code}")
+            return None
+    print(f"[-] {label} failed after 3 attempts")
+    return None
 
-    if rsc is None or rsc.status_code != 200:
-        print("[-] RSC fetch failed after 3 attempts")
-        return ""
 
-    # Strategy A: scan ALL RSC component references (N:I[...]) — not just
-    # hardcoded component 53, which changes with every Next.js build.
-    component_blocks = re.findall(r'\d+:I\[\d+,\[([^\]]*)\]', rsc.text)
-    print(f"[*] RSC payload: {len(rsc.text)} bytes, "
-          f"{len(component_blocks)} component block(s) found")
-
+def _fetch_model_chunk() -> str:
+    """Return raw JS source of the chunk with MODELS data, or '' on failure."""
     chunk_paths: List[str] = []
-    for block in component_blocks:
-        chunk_paths += re.findall(
-            r'"((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
-            block,
-        )
 
-    # Strategy B: if still nothing, scan the full RSC payload for chunk URLs.
-    if not chunk_paths:
-        print("[!] No chunk paths from component blocks — scanning full RSC payload")
+    # ── Strategy A: plain HTML fetch (no special headers) ────────────
+    # A normal browser GETs the HTML page first; chunk URLs appear in
+    # <script src="/_next/static/chunks/..."> tags.  This avoids the
+    # RSC-specific headers (RSC: 1, Next-Router-Prefetch: 1) that bot
+    # filters flag and rate-limit aggressively.
+    html = _get_with_retry(DOC_URL, HEADERS, 20, "HTML page")
+    if html:
+        print(f"[*] HTML page: {len(html)} bytes")
         chunk_paths = re.findall(
-            r'"((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
-            rsc.text,
+            r'src="((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
+            html,
         )
+        print(f"[*] Chunk URLs from HTML <script> tags: {len(chunk_paths)}")
+
+    # ── Strategy B: RSC payload scan (fallback if HTML had no chunks) ─
+    # Next.js RSC responses embed I[id,[...]] component references that
+    # list chunk URLs, and also contain free-form chunk path strings.
+    if not chunk_paths:
+        print("[!] No chunks from HTML — trying RSC payload")
+        rsc_text = _get_with_retry(
+            DOC_URL,
+            {**HEADERS, "RSC": "1", "Next-Router-Prefetch": "1"},
+            20,
+            "RSC payload",
+        )
+        if not rsc_text:
+            return ""
+        print(f"[*] RSC payload: {len(rsc_text)} bytes")
+        # Scan all N:I[...] component blocks
+        for block in re.findall(r'\d+:I\[\d+,\[([^\]]*)\]', rsc_text):
+            chunk_paths += re.findall(
+                r'"((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
+                block,
+            )
+        # Last resort: scan the whole RSC text
+        if not chunk_paths:
+            chunk_paths = re.findall(
+                r'"((?:/docs-static)?/_next/static/chunks/[^"?]+(?:\?[^"]*)?)"',
+                rsc_text,
+            )
 
     seen: set = set()
     unique_paths = [p for p in chunk_paths if not (p in seen or seen.add(p))]
     print(f"[*] Candidate chunk URLs: {len(unique_paths)}")
 
     if not unique_paths:
-        print("[-] No _next/static/chunks/ URLs found anywhere in RSC payload")
+        print("[-] No _next/static/chunks/ URLs found")
         return ""
 
     # OR logic across 4 independent signals — tolerates single field renames.
     _SIGNALS = ('"MODELS"', "tokenInput", "uncachedInput", "requests:")
 
     for path in unique_paths:
-        try:
-            r = _requests.get(
-                "https://cursor.com" + path, headers=HEADERS, timeout=15
-            )
-        except Exception as e:
-            print(f"[-] Chunk fetch failed for {path}: {e}")
+        text = _get_with_retry(
+            "https://cursor.com" + path, HEADERS, 15, f"chunk {path}"
+        )
+        if text is None:
             continue
 
-        hits = [s for s in _SIGNALS if s in r.text]
+        hits = [s for s in _SIGNALS if s in text]
         if len(hits) >= 2:
             print(f"[+] Model chunk found: {path} (signals: {hits})")
-            return r.text
+            return text
         if hits:
             print(f"[~] Partial signal match on {path}: {hits} — skipping")
 
