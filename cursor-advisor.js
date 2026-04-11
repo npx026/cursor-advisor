@@ -209,18 +209,14 @@
 
     const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
     const driversSorted = drivers.slice().sort(cmpTierKey);
-    // If Best is already a driver, Value = second-best driver; otherwise Value = best driver
+    // Budget = best flat-rate driver by tier/quality (= recommended daily driver when best is Max Mode)
     const value = best.isDailyDriver
       ? (driversSorted.filter(m => m !== best)[0] || null)
       : (driversSorted[0] || null);
 
-    const capableDrivers = drivers.filter(
-      m => (TIER_RANK[m.intelligenceTier] ?? 9) <= 1 && m !== best && m !== value
-    );
-    const bestVal = capableDrivers.length
-      ? capableDrivers.reduce((b, m) =>
-          (m.requestPrice ?? cfg.flatRate) < (b.requestPrice ?? cfg.flatRate) ? m : b)
-      : null;
+    // Smart = best remaining driver (not best, not budget)
+    const remaining = drivers.filter(m => m !== best && m !== value);
+    const bestVal = remaining.length ? remaining.slice().sort(cmpTierKey)[0] : null;
 
     return { best, value, bestVal };
   }
@@ -231,17 +227,22 @@
     if (!drivers.length) return { best: null, value: null, bestVal: null };
 
     const best = pickBestDriver(models, false, cfg);
-    const otherDrivers = drivers.filter(m => m !== best).sort(cmpTierKey);
-    const value = otherDrivers[0] || null;
+    const others = drivers.filter(m => m !== best);
 
-    // BestVal: cheapest 1-credit driver not already picked
-    const flatCost  = cfg.flatRate;
-    const oneCredit = drivers.filter(m =>
-      (m.requestPrice ?? flatCost) <= flatCost && m !== best && m !== value
-    );
-    const bestVal = oneCredit.length
-      ? oneCredit.reduce((b, m) => cmpTierKey(m, b) < 0 ? m : b)
-      : (drivers.filter(m => m !== best && m !== value).sort(cmpTierKey)[0] || null);
+    // Budget: cheapest by requestPrice; on price tie prefer lower tier (lighter/faster)
+    let value = null;
+    if (others.length) {
+      const minReqPrice = Math.min(...others.map(m => m.requestPrice ?? cfg.flatRate));
+      const tied = others.filter(m => (m.requestPrice ?? cfg.flatRate) === minReqPrice);
+      value = tied.reduce((b, m) =>
+        (TIER_RANK[m.intelligenceTier] ?? 9) > (TIER_RANK[b.intelligenceTier] ?? 9) ? m : b, tied[0]);
+    }
+
+    // Smart: best remaining by tier (frontier > high > moderate, then highest API cost)
+    const remaining = others.filter(m => m !== value);
+    const bestVal = remaining.length
+      ? remaining.reduce((b, m) => cmpTierKey(m, b) < 0 ? m : b)
+      : null;
 
     return { best, value, bestVal };
   }
@@ -273,9 +274,9 @@
   function renderTldr(models, cfg) {
     const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
 
-    const { best: planBest,  value: planValue,  bestVal: planBestVal  } = pickPlanModels(models, cfg);
-    const { best: buildBest, value: buildValue, bestVal: buildBestVal } = pickDriverTriple(models, cfg);
-    const { best: editBest,  value: editValue,  bestVal: editBestVal  } = pickEditTriple(models, cfg);
+    const { best: planBest,  value: planBudget,  bestVal: planSmart  } = pickPlanModels(models, cfg);
+    const { best: buildBest, value: buildBudget, bestVal: buildSmart } = pickDriverTriple(models, cfg);
+    const { best: editBest,  value: editBudget,  bestVal: editSmart  } = pickEditTriple(models, cfg);
 
     const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
     const buildCr     = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
@@ -283,26 +284,47 @@
     const buildOndemR = buildBest ? Math.floor(cfg.onDemandBudget / (buildBest.requestPrice ?? cfg.flatRate)) : 0;
 
     // ── Pick reasons (why this model won each slot) ──────────────────────────
-    const tierCap = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
-    const crNote  = (m) => { const c = creditsPerReq(m, cfg) || 1; return c === 1 ? '1-credit' : `${c}-credit`; };
+    const tierCap  = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
+    const crNote   = (m) => { const c = creditsPerReq(m, cfg) || 1; return c === 1 ? '1 credit' : `${c} credits`; };
+    const drvRate  = buildBest ? fmtCost(buildBest.requestPrice ?? cfg.flatRate) : fmtCost(cfg.flatRate);
 
-    const planBestReason   = planBest   ? (planBest.isMaxOnly
-      ? `Highest capability — Max Mode, billed per-token`
-      : `Highest intelligence in the request pool`) : '';
-    const planValueReason  = planValue  ? `Best ${tierCap(planValue.intelligenceTier)}-tier model in the flat-rate request pool` : '';
-    const planBestValReason= planBestVal? `High-tier driver at lowest credit cost (${crNote(planBestVal)})` : '';
+    const planBestReason = planBest ? (planBest.isMaxOnly
+      ? `Max Mode — per-token billing, bypasses the credit pool`
+      : `Highest flat-rate intelligence`) : '';
+    const planBudgetReason = planBudget ? (planBudget === buildBest
+      ? `The recommended daily driver — best flat-rate quality at ${drvRate}/req`
+      : `Best flat-rate option — ${tierCap(planBudget.intelligenceTier)} tier at ${crNote(planBudget)}`) : '';
+    const planSmartReason = planSmart ? (() => {
+      const cr = creditsPerReq(planSmart, cfg) || 1;
+      const dCr = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
+      return cr > dCr
+        ? `Frontier flat-rate at ${cr} credits — between daily driver and Max Mode`
+        : `${tierCap(planSmart.intelligenceTier)} flat-rate at ${crNote(planSmart)}`;
+    })() : '';
 
-    const buildBestReason  = buildBest  ? `${tierCap(buildBest.intelligenceTier)} intelligence at ${crNote(buildBest)} flat rate` : '';
-    const buildValueReason = buildValue ? (buildValue.intelligenceTier === buildBest?.intelligenceTier
-      ? `Same tier as Best — higher ${crNote(buildValue)} cost, different model`
-      : `${tierCap(buildValue.intelligenceTier)}-tier at ${crNote(buildValue)} flat rate`) : '';
-    const buildBestValReason = buildBestVal ? `${tierCap(buildBestVal.intelligenceTier)}-tier at ${crNote(buildBestVal)} — best quality per credit` : '';
+    const buildBestReason = buildBest ? `Recommended daily driver — highest-tier flat-rate model` : '';
+    const buildBudgetReason = buildBudget ? (() => {
+      const samePrice = (buildBudget.requestPrice ?? cfg.flatRate) === (buildBest?.requestPrice ?? cfg.flatRate);
+      return samePrice
+        ? `Same ${drvRate} rate as Best — ${tierCap(buildBudget.intelligenceTier)} tier for lighter tasks`
+        : `Cheapest driver — ${tierCap(buildBudget.intelligenceTier)} tier at ${fmtCost(buildBudget.requestPrice ?? cfg.flatRate)}/req`;
+    })() : '';
+    const buildSmartReason = buildSmart
+      ? `${tierCap(buildSmart.intelligenceTier)} tier at ${crNote(buildSmart)} — best quality above the minimum rate`
+      : '';
 
-    const editBestReason   = editBest   ? (editBest.intelligenceTier === 'moderate'
-      ? `Lightweight — fastest response, lowest cost for quick tasks`
-      : `Cheapest driver with ${tierCap(editBest.intelligenceTier)}-tier quality`) : '';
-    const editValueReason  = editValue  ? `${tierCap(editValue.intelligenceTier)}-tier alternative at same price` : '';
-    const editBestValReason= editBestVal? `${tierCap(editBestVal.intelligenceTier)}-tier at minimum cost` : '';
+    const editBestReason = editBest
+      ? `Lightest &amp; fastest — minimum cost for quick tasks`
+      : '';
+    const editBudgetReason = editBudget ? (() => {
+      const samePrice = (editBudget.requestPrice ?? cfg.flatRate) === (editBest?.requestPrice ?? cfg.flatRate);
+      return samePrice
+        ? `${tierCap(editBudget.intelligenceTier)} quality at the same ${fmtCost(editBudget.requestPrice ?? cfg.flatRate)} rate — more capable for same cost`
+        : `Cheapest remaining — ${tierCap(editBudget.intelligenceTier)} tier at ${fmtCost(editBudget.requestPrice ?? cfg.flatRate)}/req`;
+    })() : '';
+    const editSmartReason = editSmart
+      ? `${tierCap(editSmart.intelligenceTier)} tier at ${crNote(editSmart)} — when precision matters more than speed`
+      : '';
 
     function scenarioCard(scenario, exampleUses, model, tag, reason) {
       if (!model) return '';
@@ -330,7 +352,7 @@
       }
 
       const hiddenId    = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
-      const tagCls      = tag === 'Best' ? 'scenario-tag--best' : tag === 'Value' ? 'scenario-tag--value' : 'scenario-tag--bv';
+      const tagCls      = tag === 'Best' ? 'scenario-tag--best' : tag === 'Budget' ? 'scenario-tag--budget' : 'scenario-tag--smart';
       const examplesHtml = exampleUses ? `<span class="scenario-examples">${exampleUses}</span>` : '';
       const reasonHtml   = reason      ? `<div class="scenario-reason">${reason}</div>` : '';
 
@@ -398,18 +420,18 @@
       <div class="scenario-grid">
         <div class="scenario-group">
           ${scenarioCard('Plan', 'Architecture &middot; complex debug &middot; refactor', planBest, 'Best', planBestReason)}
-          ${scenarioCard('Plan', null, planValue, 'Value', planValueReason)}
-          ${scenarioCard('Plan', null, planBestVal, 'Best/val', planBestValReason)}
+          ${scenarioCard('Plan', null, planBudget, 'Budget', planBudgetReason)}
+          ${scenarioCard('Plan', null, planSmart, 'Smart', planSmartReason)}
         </div>
         <div class="scenario-group">
           ${scenarioCard('Build', 'Features &middot; code review &middot; implement', buildBest, 'Best', buildBestReason)}
-          ${scenarioCard('Build', null, buildValue, 'Value', buildValueReason)}
-          ${scenarioCard('Build', null, buildBestVal, 'Best/val', buildBestValReason)}
+          ${scenarioCard('Build', null, buildBudget, 'Budget', buildBudgetReason)}
+          ${scenarioCard('Build', null, buildSmart, 'Smart', buildSmartReason)}
         </div>
         <div class="scenario-group">
           ${scenarioCard('Quick Edit', 'Small fixes &middot; explain &middot; rename', editBest, 'Best', editBestReason)}
-          ${scenarioCard('Quick Edit', null, editValue, 'Value', editValueReason)}
-          ${scenarioCard('Quick Edit', null, editBestVal, 'Best/val', editBestValReason)}
+          ${scenarioCard('Quick Edit', null, editBudget, 'Budget', editBudgetReason)}
+          ${scenarioCard('Quick Edit', null, editSmart, 'Smart', editSmartReason)}
         </div>
       </div>
       <div class="tldr-budget-line">

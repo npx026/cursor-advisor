@@ -647,9 +647,11 @@ main {
   color: var(--text-muted);
 }
 
-.scenario-tag--best  { color: var(--accent-light); border-color: var(--accent); }
-.scenario-tag--value { color: var(--warn);          border-color: var(--warn);   }
-.scenario-tag--bv    { color: var(--text-muted);    border-color: var(--border); }
+.scenario-tag--best   { color: var(--accent-light); border-color: var(--accent); }
+.scenario-tag--budget { color: #6ee7b7;             border-color: rgba(16,185,129,0.4); }
+.scenario-tag--smart  { color: var(--warn);          border-color: var(--warn); }
+
+html.light-theme .scenario-tag--budget { color: #059669; border-color: rgba(16,185,129,0.5); }
 
 .scenario-examples {
   font-size: 0.72rem;
