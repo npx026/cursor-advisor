@@ -191,10 +191,17 @@
     if (!allVisible.length) return { best: null, value: null, bestVal: null };
 
     const best = allVisible.reduce((b, m) => {
-      const ka = [TIER_RANK[m.intelligenceTier] ?? 9, costPerRequest(m, heavy.in, heavy.out, cfg)];
-      const kb = [TIER_RANK[b.intelligenceTier] ?? 9, costPerRequest(b, heavy.in, heavy.out, cfg)];
-      for (let i = 0; i < ka.length; i++) { if (ka[i] !== kb[i]) return ka[i] < kb[i] ? m : b; }
-      return b;
+      const tierM = TIER_RANK[m.intelligenceTier] ?? 9;
+      const tierB = TIER_RANK[b.intelligenceTier] ?? 9;
+      if (tierM !== tierB) return tierM < tierB ? m : b;
+      // Same tier: prefer isMaxOnly (premium per-token) over daily drivers — max = highest capability
+      const premM = m.isMaxOnly ? 0 : 1;
+      const premB = b.isMaxOnly ? 0 : 1;
+      if (premM !== premB) return premM < premB ? m : b;
+      const costM = costPerRequest(m, heavy.in, heavy.out, cfg);
+      const costB = costPerRequest(b, heavy.in, heavy.out, cfg);
+      // maxOnly: more expensive = more capable (Opus > Sonnet); driver: cheaper = better value
+      return (m.isMaxOnly ? costM > costB : costM < costB) ? m : b;
     });
 
     const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
@@ -291,9 +298,10 @@
         const cr     = creditsPerReq(model, cfg) || 1;
         const inclR  = Math.floor(cfg.premiumRequests / cr);
         const ondemR = Math.floor(cfg.onDemandBudget / (model.requestPrice ?? cfg.flatRate));
+        const budgetPart = ondemR > 0 ? ` + ${ondemR.toLocaleString()} on-demand` : '';
         billingHtml = `
           ${creditPill(cr)}
-          <div class="scenario-budget">${inclR.toLocaleString()} incl + ${ondemR.toLocaleString()} on-demand reqs</div>`;
+          <div class="scenario-budget">${inclR.toLocaleString()} included${budgetPart} reqs</div>`;
       }
 
       const hiddenId    = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
@@ -341,8 +349,10 @@
       </div>
       <div class="tldr-budget-line">
         Request pool: <strong>${cfg.premiumRequests.toLocaleString()} included credits</strong>
-        + <strong>${budgetCredits.toLocaleString()} on-demand credits</strong>
-        = <strong>${buildInclR.toLocaleString()} + ${buildOndemR.toLocaleString()} Build-tier requests</strong>
+        ${budgetCredits > 0 ? `+ <strong>${budgetCredits.toLocaleString()} on-demand credits</strong>` : ''}
+        = <strong>${buildOndemR > 0
+          ? `${buildInclR.toLocaleString()} + ${buildOndemR.toLocaleString()} Build-tier requests`
+          : `${buildInclR.toLocaleString()} Build-tier requests (included)`}</strong>
         at ${fmtCost(cfg.flatRate)}/credit.
         ${planBest?.isMaxOnly ? `<span class="tldr-warning" style="display:inline;margin-left:0.25rem">Plan Best uses Max Mode — billed per-token from your $${cfg.onDemandBudget.toFixed(0)} budget, not from the credit pool.</span>` : ''}
       </div>`;
@@ -385,7 +395,7 @@
             </td>
             <td class="cost-cell">${cost}</td>
             <td>${tierBadge(m.intelligenceTier)}</td>
-            <td class="credits-cell">${creditPill(cr)}<span class="credit-budget">${inclR.toLocaleString()} + ${odmR.toLocaleString()} reqs</span></td>
+            <td class="credits-cell">${creditPill(cr)}<span class="credit-budget">${inclR.toLocaleString()}${odmR > 0 ? ` + ${odmR.toLocaleString()}` : ''} reqs</span></td>
           </tr>`;
       });
     }
