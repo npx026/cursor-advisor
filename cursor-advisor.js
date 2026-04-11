@@ -162,9 +162,16 @@
     return '$' + n.toFixed(2);
   }
 
+  const TIER_TITLE = {
+    frontier: 'Frontier — highest capability tier; best for complex reasoning and architecture',
+    high:     'High — strong capability; good balance of quality and speed',
+    moderate: 'Moderate — fast and lightweight; optimised for simple edits and autocomplete',
+  };
+
   function tierBadge(tier) {
-    const cls = { frontier: 'frontier', high: 'high', moderate: 'moderate' }[tier] || 'moderate';
-    return `<span class="tier-badge ${cls}">${tier}</span>`;
+    const cls   = { frontier: 'frontier', high: 'high', moderate: 'moderate' }[tier] || 'moderate';
+    const title = TIER_TITLE[tier] || tier;
+    return `<span class="tier-badge ${cls}" title="${title}">${tier}</span>`;
   }
 
   // ── Credit helpers ─────────────────────────────────────────────────────────
@@ -243,9 +250,9 @@
     return { best, value, bestVal };
   }
 
-  // Returns { best, value, bestVal } for Quick Edit (all drivers, favour cheapest/fastest).
+  // Returns { best, value, bestVal } for Quick Edit (visible drivers only, favour cheapest/fastest).
   function pickEditTriple(models, cfg) {
-    const drivers = models.filter(m => m.isDailyDriver);
+    const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
     if (!drivers.length) return { best: null, value: null, bestVal: null };
 
     const minPrice = Math.min(...drivers.map(m => m.requestPrice ?? cfg.flatRate));
@@ -279,7 +286,29 @@
     const buildInclR  = buildBest ? Math.floor(cfg.premiumRequests / buildCr) : 0;
     const buildOndemR = buildBest ? Math.floor(cfg.onDemandBudget / (buildBest.requestPrice ?? cfg.flatRate)) : 0;
 
-    function scenarioCard(scenario, exampleUses, model, tag) {
+    // ── Pick reasons (why this model won each slot) ──────────────────────────
+    const tierCap = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
+    const crNote  = (m) => { const c = creditsPerReq(m, cfg) || 1; return c === 1 ? '1-credit' : `${c}-credit`; };
+
+    const planBestReason   = planBest   ? (planBest.isMaxOnly
+      ? `Highest capability — Max Mode, billed per-token`
+      : `Highest intelligence in the request pool`) : '';
+    const planValueReason  = planValue  ? `Best ${tierCap(planValue.intelligenceTier)}-tier model in the flat-rate request pool` : '';
+    const planBestValReason= planBestVal? `High-tier driver at lowest credit cost (${crNote(planBestVal)})` : '';
+
+    const buildBestReason  = buildBest  ? `${tierCap(buildBest.intelligenceTier)} intelligence at ${crNote(buildBest)} flat rate` : '';
+    const buildValueReason = buildValue ? (buildValue.intelligenceTier === buildBest?.intelligenceTier
+      ? `Same tier as Best — higher ${crNote(buildValue)} cost, different model`
+      : `${tierCap(buildValue.intelligenceTier)}-tier at ${crNote(buildValue)} flat rate`) : '';
+    const buildBestValReason = buildBestVal ? `${tierCap(buildBestVal.intelligenceTier)}-tier at ${crNote(buildBestVal)} — best quality per credit` : '';
+
+    const editBestReason   = editBest   ? (editBest.intelligenceTier === 'moderate'
+      ? `Lightweight — fastest response, lowest cost for quick tasks`
+      : `Cheapest driver with ${tierCap(editBest.intelligenceTier)}-tier quality`) : '';
+    const editValueReason  = editValue  ? `${tierCap(editValue.intelligenceTier)}-tier alternative at same price` : '';
+    const editBestValReason= editBestVal? `${tierCap(editBestVal.intelligenceTier)}-tier at minimum cost` : '';
+
+    function scenarioCard(scenario, exampleUses, model, tag, reason) {
       if (!model) return '';
       const isMax  = !!model.isMaxOnly;
       const price  = isMax
@@ -306,8 +335,8 @@
 
       const hiddenId    = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
       const tagCls      = tag === 'Best' ? 'scenario-tag--best' : tag === 'Value' ? 'scenario-tag--value' : 'scenario-tag--bv';
-      const examplesHtml = exampleUses
-        ? `<span class="scenario-examples">${exampleUses}</span>` : '';
+      const examplesHtml = exampleUses ? `<span class="scenario-examples">${exampleUses}</span>` : '';
+      const reasonHtml   = reason      ? `<div class="scenario-reason">${reason}</div>` : '';
 
       return `
         <div class="scenario-card">
@@ -323,6 +352,7 @@
             <strong>${costStr}</strong>
             ${tierBadge(model.intelligenceTier)}
           </div>
+          ${reasonHtml}
           <div class="scenario-billing">${billingHtml}</div>
         </div>`;
     }
@@ -330,21 +360,30 @@
     const el = document.getElementById('section-tldr');
     if (!el) return;
     el.innerHTML = `
+      <div class="tldr-legend">
+        <span class="tldr-legend-item" title="Flat-rate billing from your request pool">
+          ${creditPill(1)} Request pool — flat rate · uses included &amp; on-demand credits
+        </span>
+        <span class="tldr-legend-sep">·</span>
+        <span class="tldr-legend-item" title="Per-token billing from your on-demand budget — does not use credit pool">
+          <span class="credit-pill credit-pill--maxmode">Max Mode</span> Per-token · billed from on-demand budget only
+        </span>
+      </div>
       <div class="scenario-grid">
         <div class="scenario-group">
-          ${scenarioCard('Plan', 'Architecture &middot; complex debug &middot; refactor', planBest, 'Best')}
-          ${scenarioCard('Plan', null, planValue, 'Value')}
-          ${scenarioCard('Plan', null, planBestVal, 'Best/val')}
+          ${scenarioCard('Plan', 'Architecture &middot; complex debug &middot; refactor', planBest, 'Best', planBestReason)}
+          ${scenarioCard('Plan', null, planValue, 'Value', planValueReason)}
+          ${scenarioCard('Plan', null, planBestVal, 'Best/val', planBestValReason)}
         </div>
         <div class="scenario-group">
-          ${scenarioCard('Build', 'Features &middot; code review &middot; implement', buildBest, 'Best')}
-          ${scenarioCard('Build', null, buildValue, 'Value')}
-          ${scenarioCard('Build', null, buildBestVal, 'Best/val')}
+          ${scenarioCard('Build', 'Features &middot; code review &middot; implement', buildBest, 'Best', buildBestReason)}
+          ${scenarioCard('Build', null, buildValue, 'Value', buildValueReason)}
+          ${scenarioCard('Build', null, buildBestVal, 'Best/val', buildBestValReason)}
         </div>
         <div class="scenario-group">
-          ${scenarioCard('Quick Edit', 'Small fixes &middot; explain &middot; rename', editBest, 'Best')}
-          ${scenarioCard('Quick Edit', null, editValue, 'Value')}
-          ${scenarioCard('Quick Edit', null, editBestVal, 'Best/val')}
+          ${scenarioCard('Quick Edit', 'Small fixes &middot; explain &middot; rename', editBest, 'Best', editBestReason)}
+          ${scenarioCard('Quick Edit', null, editValue, 'Value', editValueReason)}
+          ${scenarioCard('Quick Edit', null, editBestVal, 'Best/val', editBestValReason)}
         </div>
       </div>
       <div class="tldr-budget-line">

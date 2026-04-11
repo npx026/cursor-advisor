@@ -14,7 +14,7 @@
   --border:       #252538;
   --text:         #e2e2f0;
   --text-muted:   #7878a0;
-  --text-subtle:  #4a4a6a;
+  --text-subtle:  #6a6a9a;
   --accent:       #1d8cf8;
   --accent-dark:  #1371d9;
   --accent-light: #5ab4ff;
@@ -410,6 +410,31 @@ main {
   flex-wrap: wrap;
 }
 
+.tldr-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.tldr-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tldr-legend-sep {
+  color: var(--border);
+  user-select: none;
+}
+
 .tldr-budget-line {
   font-size: 0.875rem;
   color: var(--text-muted);
@@ -515,6 +540,15 @@ main {
   flex-wrap: wrap;
 }
 
+.scenario-reason {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  font-style: italic;
+  margin-top: 0.15rem;
+  margin-bottom: 0.1rem;
+}
+
 .scenario-billing {
   display: flex;
   flex-direction: column;
@@ -524,7 +558,7 @@ main {
 
 .scenario-budget {
   font-size: 0.76rem;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   line-height: 1.4;
 }
 
