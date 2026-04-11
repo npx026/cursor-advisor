@@ -1,6 +1,6 @@
 {
   "date": "2026-04-11",
-  "source": "fallback",
+  "source": "live",
   "models": [
     {
       "name": "claude-sonnet-4",
@@ -13,6 +13,71 @@
       "isDailyDriver": true,
       "isHidden": true,
       "intelligenceTier": "high",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-sonnet-4-6",
+      "displayName": "Claude 4.6 Sonnet",
+      "tier": "premium",
+      "inPrice": 3.0,
+      "outPrice": 15.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isHidden": false,
+      "intelligenceTier": "high",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-sonnet-4-5",
+      "displayName": "Claude 4.5 Sonnet",
+      "tier": "premium",
+      "inPrice": 3.0,
+      "outPrice": 15.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isHidden": true,
+      "intelligenceTier": "high",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-opus-4-6",
+      "displayName": "Claude 4.6 Opus",
+      "tier": "premium",
+      "inPrice": 5.0,
+      "outPrice": 25.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isHidden": false,
+      "intelligenceTier": "frontier",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-opus-4-5",
+      "displayName": "Claude 4.5 Opus",
+      "tier": "premium",
+      "inPrice": 5.0,
+      "outPrice": 25.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isHidden": true,
+      "intelligenceTier": "frontier",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-opus-4-6-fast",
+      "displayName": "Claude 4.6 Opus (Fast mode)",
+      "tier": "premium",
+      "inPrice": 30.0,
+      "outPrice": 150.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isHidden": true,
+      "intelligenceTier": "frontier",
       "provider": "Anthropic"
     },
     {
@@ -185,6 +250,19 @@
       "provider": "OpenAI"
     },
     {
+      "name": "gpt-5.4",
+      "displayName": "GPT-5.4",
+      "tier": "premium",
+      "inPrice": 2.5,
+      "outPrice": 15.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isHidden": false,
+      "intelligenceTier": "frontier",
+      "provider": "OpenAI"
+    },
+    {
       "name": "gpt-5.4-mini",
       "displayName": "GPT-5.4 Mini",
       "tier": "daily_driver",
@@ -208,6 +286,19 @@
       "isDailyDriver": true,
       "isHidden": true,
       "intelligenceTier": "moderate",
+      "provider": "OpenAI"
+    },
+    {
+      "name": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "tier": "premium",
+      "inPrice": 1.75,
+      "outPrice": 14.0,
+      "requestPrice": null,
+      "isMaxOnly": false,
+      "isDailyDriver": false,
+      "isHidden": false,
+      "intelligenceTier": "frontier",
       "provider": "OpenAI"
     },
     {
@@ -313,97 +404,6 @@
       "isHidden": false,
       "intelligenceTier": "frontier",
       "provider": "Cursor"
-    },
-    {
-      "name": "claude-sonnet-4-6",
-      "displayName": "Claude 4.6 Sonnet",
-      "tier": "premium",
-      "inPrice": 3.0,
-      "outPrice": 15.0,
-      "requestPrice": null,
-      "isMaxOnly": true,
-      "isDailyDriver": false,
-      "isHidden": false,
-      "intelligenceTier": "high",
-      "provider": "Anthropic"
-    },
-    {
-      "name": "claude-sonnet-4-5",
-      "displayName": "Claude 4.5 Sonnet",
-      "tier": "premium",
-      "inPrice": 3.0,
-      "outPrice": 15.0,
-      "requestPrice": null,
-      "isMaxOnly": true,
-      "isDailyDriver": false,
-      "isHidden": true,
-      "intelligenceTier": "high",
-      "provider": "Anthropic"
-    },
-    {
-      "name": "claude-opus-4-6",
-      "displayName": "Claude 4.6 Opus",
-      "tier": "premium",
-      "inPrice": 5.0,
-      "outPrice": 25.0,
-      "requestPrice": null,
-      "isMaxOnly": true,
-      "isDailyDriver": false,
-      "isHidden": false,
-      "intelligenceTier": "frontier",
-      "provider": "Anthropic"
-    },
-    {
-      "name": "claude-opus-4-5",
-      "displayName": "Claude 4.5 Opus",
-      "tier": "premium",
-      "inPrice": 5.0,
-      "outPrice": 25.0,
-      "requestPrice": null,
-      "isMaxOnly": true,
-      "isDailyDriver": false,
-      "isHidden": true,
-      "intelligenceTier": "frontier",
-      "provider": "Anthropic"
-    },
-    {
-      "name": "claude-opus-4-6-fast",
-      "displayName": "Claude 4.6 Opus (Fast mode)",
-      "tier": "premium",
-      "inPrice": 30.0,
-      "outPrice": 150.0,
-      "requestPrice": null,
-      "isMaxOnly": true,
-      "isDailyDriver": false,
-      "isHidden": true,
-      "intelligenceTier": "frontier",
-      "provider": "Anthropic"
-    },
-    {
-      "name": "gpt-5.4",
-      "displayName": "GPT-5.4",
-      "tier": "premium",
-      "inPrice": 2.5,
-      "outPrice": 15.0,
-      "requestPrice": null,
-      "isMaxOnly": true,
-      "isDailyDriver": false,
-      "isHidden": false,
-      "intelligenceTier": "frontier",
-      "provider": "OpenAI"
-    },
-    {
-      "name": "gpt-5.3-codex",
-      "displayName": "GPT-5.3 Codex",
-      "tier": "premium",
-      "inPrice": 1.75,
-      "outPrice": 14.0,
-      "requestPrice": null,
-      "isMaxOnly": false,
-      "isDailyDriver": false,
-      "isHidden": false,
-      "intelligenceTier": "frontier",
-      "provider": "OpenAI"
     }
   ]
 }
