@@ -95,7 +95,8 @@
   // ── Config helpers ────────────────────────────────────────────────────────
   function getConfig() {
     function num(id, def, allowZero = false) {
-      const v = parseFloat(document.getElementById(id)?.value);
+      const el = document.getElementById(id);
+      const v = el ? el.valueAsNumber : NaN;
       return isFinite(v) && (allowZero ? v >= 0 : v > 0) ? v : def;
     }
     return {
