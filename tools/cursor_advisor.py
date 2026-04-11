@@ -15,6 +15,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -139,17 +140,32 @@ FALLBACK_MODELS: List[ModelRecord] = [
 
 def _fetch_model_chunk() -> str:
     """Return raw JS source of the chunk with MODELS data, or '' on failure."""
-    try:
-        rsc = _requests.get(
-            DOC_URL,
-            headers={**HEADERS, "RSC": "1", "Next-Router-Prefetch": "1"},
-            timeout=20,
-        )
-        if rsc.status_code != 200:
+    rsc = None
+    for attempt in range(3):
+        try:
+            rsc = _requests.get(
+                DOC_URL,
+                headers={**HEADERS, "RSC": "1", "Next-Router-Prefetch": "1"},
+                timeout=20,
+            )
+        except Exception as e:
+            print(f"[-] RSC fetch failed (attempt {attempt + 1}): {e}")
+            time.sleep(2 ** attempt)
+            continue
+
+        if rsc.status_code == 200:
+            break
+        if rsc.status_code == 429:
+            retry_after = int(rsc.headers.get("Retry-After", 2 ** (attempt + 2)))
+            print(f"[-] RSC fetch rate-limited (429) — waiting {retry_after}s "
+                  f"(attempt {attempt + 1}/3)")
+            time.sleep(retry_after)
+        else:
             print(f"[-] RSC fetch returned HTTP {rsc.status_code}")
             return ""
-    except Exception as e:
-        print(f"[-] RSC fetch failed: {e}")
+
+    if rsc is None or rsc.status_code != 200:
+        print("[-] RSC fetch failed after 3 attempts")
         return ""
 
     # Strategy A: scan ALL RSC component references (N:I[...]) — not just
