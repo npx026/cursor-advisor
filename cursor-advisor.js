@@ -352,9 +352,39 @@
         </div>`;
     }
 
+    // ── Daily driver banner ──────────────────────────────────────────────────
+    const driverBannerHtml = (() => {
+      const m = buildBest;
+      if (!m) return '';
+      const cr     = creditsPerReq(m, cfg) || 1;
+      const inclR  = Math.floor(cfg.premiumRequests / cr);
+      const ondemR = Math.floor(cfg.onDemandBudget / (m.requestPrice ?? cfg.flatRate));
+      const priceStr = fmtCost(m.requestPrice ?? cfg.flatRate);
+      const ondemPart = ondemR > 0
+        ? `<div class="ddb-stat"><span class="ddb-stat-val">+${ondemR.toLocaleString()}</span><span class="ddb-stat-lbl">on-demand reqs</span></div>`
+        : '';
+      return `
+        <div class="daily-driver-banner">
+          <div class="ddb-top">
+            <div class="ddb-left">
+              <span class="ddb-eyebrow">Recommended daily driver</span>
+              <div class="ddb-model">${modelLabel(m)}</div>
+              <div class="ddb-meta">${m.provider}&ensp;&middot;&ensp;${tierBadge(m.intelligenceTier)}&ensp;&middot;&ensp;${creditPill(cr)}</div>
+            </div>
+            <div class="ddb-stats">
+              <div class="ddb-stat"><span class="ddb-stat-val">${inclR.toLocaleString()}</span><span class="ddb-stat-lbl">incl. reqs / cycle</span></div>
+              ${ondemPart}
+              <div class="ddb-stat"><span class="ddb-stat-val">${priceStr}</span><span class="ddb-stat-lbl">per request</span></div>
+            </div>
+          </div>
+          <div class="ddb-note">Flat-rate billing from your request pool — best choice for most everyday tasks. Costs draw from included credits first, then on-demand budget.</div>
+        </div>`;
+    })();
+
     const el = document.getElementById('section-tldr');
     if (!el) return;
     el.innerHTML = `
+      ${driverBannerHtml}
       <div class="tldr-legend">
         <span class="tldr-legend-item" title="Flat-rate billing from your request pool">
           ${creditPill(1)} Request pool — flat rate · uses included &amp; on-demand credits

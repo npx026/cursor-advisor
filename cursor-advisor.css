@@ -502,6 +502,90 @@ main {
 }
 
 /* --------------------------------------------------------------------------
+   Daily Driver Banner
+   -------------------------------------------------------------------------- */
+.daily-driver-banner {
+  background: var(--accent-glow2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.ddb-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ddb-eyebrow {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-light);
+  margin-bottom: 0.25rem;
+}
+
+.ddb-model {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 0.375rem;
+}
+
+.ddb-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.ddb-stats {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.ddb-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.ddb-stat-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.ddb-stat-lbl {
+  font-size: 0.68rem;
+  color: var(--text-subtle);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ddb-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(29, 140, 248, 0.15);
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
    Quick Guide — Scenario Cards (3 groups × 3 cards = 9 total)
    -------------------------------------------------------------------------- */
 .scenario-grid {
