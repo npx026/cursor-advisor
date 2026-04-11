@@ -436,8 +436,9 @@
       </div>
       <div class="section-tip">
         <strong>Tips:</strong> Disable Auto routing. Avoid Max Mode for credit-pool tasks.
-        After ${cfg.premiumRequests.toLocaleString()} included credits, on-demand kicks in at the same rate
-        (${budgetCredits.toLocaleString()} credits @ ${fmtCost(cfg.flatRate)}/req).
+        ${budgetCredits > 0
+          ? `After ${cfg.premiumRequests.toLocaleString()} included credits, on-demand kicks in at the same rate (${budgetCredits.toLocaleString()} credits @ ${fmtCost(cfg.flatRate)}/req).`
+          : `You have ${cfg.premiumRequests.toLocaleString()} included credits. Set an on-demand budget above to unlock extra requests.`}
       </div>`;
   }
 
