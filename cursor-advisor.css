@@ -316,6 +316,55 @@ main {
   padding-left: 1.75rem;
 }
 
+/* Advanced section (collapsible <details>) */
+.config-advanced {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.875rem;
+}
+
+.config-advanced > summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-subtle);
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  user-select: none;
+  transition: color var(--transition);
+}
+.config-advanced > summary::-webkit-details-marker { display: none; }
+
+.config-advanced > summary::before {
+  content: '▶';
+  font-size: 0.6rem;
+  display: inline-block;
+  transition: transform var(--transition);
+}
+
+.config-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.config-advanced > summary:hover {
+  color: var(--text-muted);
+}
+
+.config-grid--advanced {
+  margin-top: 0.875rem;
+}
+
+.config-hint {
+  font-size: 0.73rem;
+  color: var(--text-subtle);
+  line-height: 1.4;
+  margin-top: 0.125rem;
+}
+
 /* --------------------------------------------------------------------------
    Advisor Sections
    -------------------------------------------------------------------------- */

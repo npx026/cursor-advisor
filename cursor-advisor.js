@@ -98,12 +98,7 @@
       const v = parseFloat(document.getElementById(id)?.value);
       return isFinite(v) && v > 0 ? v : def;
     }
-    function str(id, def) {
-      const v = document.getElementById(id)?.value?.trim();
-      return v || def;
-    }
     return {
-      planName:         str('cfg-plan-name',   'Pro'),
       premiumRequests:  num('cfg-premium-req',  500),
       onDemandBudget:   num('cfg-budget',        20),
       flatRate:         num('cfg-flat-rate',    0.04),
@@ -620,7 +615,7 @@
     const el = document.getElementById('header-subtitle');
     if (el) {
       const credits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
-      el.textContent = `${cfg.planName} plan · ${cfg.premiumRequests.toLocaleString()} included credits · $${cfg.onDemandBudget.toFixed(0)} on-demand (${credits.toLocaleString()} credits @ ${fmtCost(cfg.flatRate)}/req)`;
+      el.textContent = `${cfg.premiumRequests.toLocaleString()} included credits · $${cfg.onDemandBudget.toFixed(0)} on-demand (${credits.toLocaleString()} credits @ ${fmtCost(cfg.flatRate)}/req)`;
     }
   }
 
