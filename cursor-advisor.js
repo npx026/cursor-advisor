@@ -183,9 +183,30 @@
   function renderTldr(models, cfg) {
     const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
 
-    // Plan: best visible frontier Max Mode model → any visible Max Mode → best driver
+    // Plan best: highest-tier visible Max Mode model, then any visible Max Mode, then best driver
     const maxVisible = models.filter(m => m.isMaxOnly && !m.isHidden).sort(cmpTierKey);
-    const planModel  = maxVisible[0] || pickBestDriver(models, false, cfg);
+    const planBest   = maxVisible[0] || pickBestDriver(models, false, cfg);
+
+    // Plan value: cheapest visible Max Mode that differs from planBest,
+    // OR the best visible daily driver if only one (or zero) Max Mode options exist.
+    let planValue = null;
+    if (maxVisible.length >= 2) {
+      planValue = maxVisible
+        .filter(m => m !== planBest)
+        .reduce((b, m) =>
+          costPerRequest(m, heavy.in, heavy.out, cfg) < costPerRequest(b, heavy.in, heavy.out, cfg) ? m : b
+        );
+    } else {
+      planValue = pickBestDriver(models, false, cfg);
+    }
+    // Suppress if cost difference is too small to matter (< 15% cheaper)
+    if (planValue && planValue !== planBest) {
+      const bCost = planBest.isMaxOnly ? costPerRequest(planBest, heavy.in, heavy.out, cfg) : (planBest.requestPrice ?? cfg.flatRate);
+      const vCost = planValue.isMaxOnly ? costPerRequest(planValue, heavy.in, heavy.out, cfg) : (planValue.requestPrice ?? cfg.flatRate);
+      if (vCost >= bCost * 0.85) planValue = null;
+    } else if (planValue === planBest) {
+      planValue = null;
+    }
 
     // Build: best visible daily driver
     const buildModel = pickBestDriver(models, false, cfg);
@@ -199,6 +220,50 @@
     }, allDrivers.find(m => (m.requestPrice ?? cfg.flatRate) === minPrice) || buildModel);
 
     const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
+
+    // Plan card: shows Best + optional Value row side-by-side
+    function planCard(bestModel, valueModel) {
+      function modelRow(tag, model, tagCls) {
+        const isMax = !!model.isMaxOnly;
+        const cost  = isMax
+          ? costPerRequest(model, heavy.in, heavy.out, cfg)
+          : (model.requestPrice ?? cfg.flatRate);
+        let budgetStr;
+        if (isMax) {
+          const reqs = cost > 0 ? Math.floor(cfg.onDemandBudget / cost) : 0;
+          budgetStr = `~${reqs.toLocaleString()} reqs for $${cfg.onDemandBudget.toFixed(0)} &middot; Max Mode`;
+        } else {
+          const cr    = creditsPerReq(model, cfg) || 1;
+          const inclR = Math.floor(cfg.premiumRequests / cr);
+          const odmR  = Math.floor(cfg.onDemandBudget / (model.requestPrice ?? cfg.flatRate));
+          budgetStr   = `${inclR.toLocaleString()} + ${odmR.toLocaleString()} reqs &middot; ${cr === 1 ? '1 credit' : cr + ' credits'}`;
+        }
+        const hiddenId = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
+        return `
+          <div class="plan-option">
+            <span class="plan-option-tag ${tagCls}">${tag}</span>
+            <div class="plan-option-body">
+              <div class="plan-option-top">
+                <span class="plan-option-name">${modelLabel(model)}${hiddenId}</span>
+                <strong class="plan-option-cost">${fmtCost(cost)}/req</strong>
+                ${tierBadge(model.intelligenceTier)}
+              </div>
+              <div class="plan-option-budget">${budgetStr}</div>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="scenario-card">
+          <div class="scenario-header">
+            <span class="scenario-label">Plan</span>
+            <span class="scenario-examples">Architecture &middot; complex debug &middot; refactor</span>
+          </div>
+          <div class="plan-options">
+            ${modelRow('Best', bestModel, 'plan-tag--best')}
+            ${valueModel ? modelRow('Value', valueModel, 'plan-tag--value') : ''}
+          </div>
+        </div>`;
+    }
 
     function scenarioCard(scenario, exampleUses, model, isRec) {
       if (!model) return '';
@@ -244,16 +309,16 @@
         </div>`;
     }
 
-    const planIsMax   = planModel?.isMaxOnly;
-    const buildCr     = buildModel ? (creditsPerReq(buildModel, cfg) || 1) : 1;
-    const buildInclR  = buildModel ? Math.floor(cfg.premiumRequests / buildCr) : 0;
-    const buildOndemR = buildModel ? Math.floor(cfg.onDemandBudget / (buildModel.requestPrice ?? cfg.flatRate)) : 0;
+    const planBestIsMax = !!planBest?.isMaxOnly;
+    const buildCr       = buildModel ? (creditsPerReq(buildModel, cfg) || 1) : 1;
+    const buildInclR    = buildModel ? Math.floor(cfg.premiumRequests / buildCr) : 0;
+    const buildOndemR   = buildModel ? Math.floor(cfg.onDemandBudget / (buildModel.requestPrice ?? cfg.flatRate)) : 0;
 
     const el = document.getElementById('section-tldr');
     if (!el) return;
     el.innerHTML = `
       <div class="scenario-grid">
-        ${scenarioCard('Plan',       'Architecture &middot; complex debug &middot; refactor', planModel,  false)}
+        ${planCard(planBest, planValue)}
         ${scenarioCard('Build',      'Features &middot; code review &middot; implement',       buildModel, true)}
         ${scenarioCard('Quick Edit', 'Small fixes &middot; explain &middot; rename',           editModel,  false)}
       </div>
@@ -262,7 +327,7 @@
         + <strong>${budgetCredits.toLocaleString()} on-demand credits</strong>
         = <strong>${buildInclR.toLocaleString()} + ${buildOndemR.toLocaleString()} Build-tier requests</strong>
         at ${fmtCost(cfg.flatRate)}/credit.
-        ${planIsMax ? `<span class="tldr-warning" style="display:inline;margin-left:0.25rem">Plan uses Max Mode — billed per-token from your $${cfg.onDemandBudget.toFixed(0)} budget, not from the credit pool.</span>` : ''}
+        ${planBestIsMax ? `<span class="tldr-warning" style="display:inline;margin-left:0.25rem">Plan Best uses Max Mode — billed per-token from your $${cfg.onDemandBudget.toFixed(0)} budget, not from the credit pool.</span>` : ''}
       </div>`;
   }
 
