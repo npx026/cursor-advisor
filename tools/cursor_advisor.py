@@ -153,6 +153,26 @@ FALLBACK_MODELS: List[ModelRecord] = [
 ]
 # ── FALLBACK_END ────────────────────────────────────────────
 
+# ── Company-specific model overrides ─────────────────────────────────
+# Models your company has access to that don't appear in Cursor's public
+# pricing page.  These are merged into the live / fallback list after
+# fetching — they are never overwritten by the auto-update mechanism.
+COMPANY_MODELS: List[ModelRecord] = [
+    ModelRecord(
+        "claude-opus-4-7-thinking-high",
+        display_name="Claude 4.7 Opus Thinking",
+        tier="daily_driver",
+        in_price=5.0,
+        out_price=25.0,
+        request_price=0.04,
+        is_daily_driver=True,
+        is_hidden=True,
+        intelligence_tier="frontier",
+        provider="Anthropic",
+        notes="Company exception: available as request-pool model (not Max Mode only)",
+    ),
+]
+
 
 # ── Dynamic fetching from Cursor's JS bundle ──────────────────────────
 # Cursor docs use Next.js App Router (RSC). The model table is a lazy component
@@ -555,6 +575,16 @@ def write_json_output(models: List[ModelRecord], source: str, date_str: str, pat
 
 # ── Model loading ─────────────────────────────────────────────────────
 
+def _merge_company_models(models: List[ModelRecord]) -> List[ModelRecord]:
+    """Append COMPANY_MODELS entries that aren't already present in the list."""
+    existing = {m.name for m in models}
+    extras = [m for m in COMPANY_MODELS if m.name not in existing]
+    if extras:
+        print(f"[+] Merged {len(extras)} company-specific model(s): "
+              f"{', '.join(m.name for m in extras)}")
+    return models + extras
+
+
 def get_models(debug: bool = False) -> Tuple[List[ModelRecord], str]:
     print(f"[*] Fetching live model data from {DOC_URL} ...")
     chunk_js = _fetch_model_chunk(debug=debug)
@@ -571,11 +601,11 @@ def get_models(debug: bool = False) -> Tuple[List[ModelRecord], str]:
         if models:
             print(f"[+] Loaded {len(models)} models from live data.")
             _update_fallback_in_source(models, date.today().isoformat())
-            return models, "live (cursor.com)"
+            return _merge_company_models(models), "live (cursor.com)"
         print("[-] Parsed chunk but found no model records.")
 
     print("[!] Could not fetch live pricing — using cached fallback data.")
-    return FALLBACK_MODELS, f"cached fallback (last updated {FALLBACK_DATE})"
+    return _merge_company_models(FALLBACK_MODELS), f"cached fallback (last updated {FALLBACK_DATE})"
 
 
 # ── Cost math ─────────────────────────────────────────────────────────
