@@ -1,9 +1,9 @@
 {
-  "date": "2026-04-12",
+  "date": "2026-04-20",
   "source": "live",
   "models": [
     {
-      "name": "claude-sonnet-4",
+      "name": "claude-4-sonnet",
       "displayName": "Claude 4 Sonnet",
       "tier": "daily_driver",
       "inPrice": 3.0,
@@ -17,7 +17,7 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-sonnet-4-6",
+      "name": "claude-4-6-sonnet",
       "displayName": "Claude 4.6 Sonnet",
       "tier": "premium",
       "inPrice": 3.0,
@@ -31,7 +31,7 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-sonnet-4-5",
+      "name": "claude-4-5-sonnet",
       "displayName": "Claude 4.5 Sonnet",
       "tier": "premium",
       "inPrice": 3.0,
@@ -45,8 +45,8 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-opus-4-6",
-      "displayName": "Claude 4.6 Opus",
+      "name": "claude-opus-4-7",
+      "displayName": "Claude 4.7 Opus",
       "tier": "premium",
       "inPrice": 5.0,
       "outPrice": 25.0,
@@ -59,7 +59,21 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-opus-4-5",
+      "name": "claude-4-6-opus",
+      "displayName": "Claude 4.6 Opus",
+      "tier": "premium",
+      "inPrice": 5.0,
+      "outPrice": 25.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isFreePreview": false,
+      "isHidden": true,
+      "intelligenceTier": "frontier",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-4-5-opus",
       "displayName": "Claude 4.5 Opus",
       "tier": "premium",
       "inPrice": 5.0,
@@ -73,7 +87,7 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-opus-4-6-fast",
+      "name": "claude-4-6-opus-fast",
       "displayName": "Claude 4.6 Opus (Fast mode)",
       "tier": "premium",
       "inPrice": 30.0,
@@ -87,7 +101,7 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-haiku-4-5",
+      "name": "claude-4-5-haiku",
       "displayName": "Claude 4.5 Haiku",
       "tier": "daily_driver",
       "inPrice": 1.0,
@@ -101,7 +115,7 @@
       "provider": "Anthropic"
     },
     {
-      "name": "claude-sonnet-4-1m",
+      "name": "claude-4-sonnet-1m",
       "displayName": "Claude 4 Sonnet 1M",
       "tier": "daily_driver",
       "inPrice": 6.0,

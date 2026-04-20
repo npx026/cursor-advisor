@@ -111,14 +111,14 @@ def label(m: ModelRecord) -> str:
 
 
 # ── FALLBACK_START ────────────────────────────────────────────
-FALLBACK_DATE = "2026-04-12"
+FALLBACK_DATE = "2026-04-20"
 
 FALLBACK_MODELS: List[ModelRecord] = [
     # ── Daily drivers (request-pool, req>=1) ───────────────────
     # These cost REQUESTS_FLAT_RATE * req_n per request from the budget pool.
-    ModelRecord("claude-sonnet-4", display_name="Claude 4 Sonnet", tier="daily_driver", in_price=3.0, out_price=15.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
-    ModelRecord("claude-haiku-4-5", display_name="Claude 4.5 Haiku", tier="daily_driver", in_price=1.0, out_price=5.0, request_price=0.04, is_daily_driver=True, is_hidden=True, provider="Anthropic"),
-    ModelRecord("claude-sonnet-4-1m", display_name="Claude 4 Sonnet 1M", tier="daily_driver", in_price=6.0, out_price=22.5, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
+    ModelRecord("claude-4-sonnet", display_name="Claude 4 Sonnet", tier="daily_driver", in_price=3.0, out_price=15.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
+    ModelRecord("claude-4-5-haiku", display_name="Claude 4.5 Haiku", tier="daily_driver", in_price=1.0, out_price=5.0, request_price=0.04, is_daily_driver=True, is_hidden=True, provider="Anthropic"),
+    ModelRecord("claude-4-sonnet-1m", display_name="Claude 4 Sonnet 1M", tier="daily_driver", in_price=6.0, out_price=22.5, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
     ModelRecord("gemini-3.1-pro", display_name="Gemini 3.1 Pro", tier="daily_driver", in_price=2.0, out_price=12.0, request_price=0.04, is_daily_driver=True, intelligence_tier="frontier", provider="Google"),
     ModelRecord("gemini-3-pro", display_name="Gemini 3 Pro", tier="daily_driver", in_price=2.0, out_price=12.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Google"),
     ModelRecord("gemini-3-flash", display_name="Gemini 3 Flash", tier="daily_driver", in_price=0.5, out_price=3.0, request_price=0.04, is_daily_driver=True, is_hidden=True, provider="Google"),
@@ -141,11 +141,12 @@ FALLBACK_MODELS: List[ModelRecord] = [
     ModelRecord("composer-1.5", display_name="Composer 1.5", tier="daily_driver", in_price=3.5, out_price=17.5, request_price=0.08, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Cursor"),
     ModelRecord("composer-2", display_name="Composer 2", tier="daily_driver", in_price=0.5, out_price=2.5, request_price=0.08, is_daily_driver=True, intelligence_tier="frontier", provider="Cursor"),
     # ── Max Mode / per-token (req=0, isMax=true) ─────────────────
-    ModelRecord("claude-sonnet-4-6", display_name="Claude 4.6 Sonnet", tier="premium", in_price=3.0, out_price=15.0, is_max_only=True, intelligence_tier="high", provider="Anthropic"),
-    ModelRecord("claude-sonnet-4-5", display_name="Claude 4.5 Sonnet", tier="premium", in_price=3.0, out_price=15.0, is_max_only=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
-    ModelRecord("claude-opus-4-6", display_name="Claude 4.6 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, intelligence_tier="frontier", provider="Anthropic"),
-    ModelRecord("claude-opus-4-5", display_name="Claude 4.5 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
-    ModelRecord("claude-opus-4-6-fast", display_name="Claude 4.6 Opus (Fast mode)", tier="premium", in_price=30.0, out_price=150.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
+    ModelRecord("claude-4-6-sonnet", display_name="Claude 4.6 Sonnet", tier="premium", in_price=3.0, out_price=15.0, is_max_only=True, intelligence_tier="high", provider="Anthropic"),
+    ModelRecord("claude-4-5-sonnet", display_name="Claude 4.5 Sonnet", tier="premium", in_price=3.0, out_price=15.0, is_max_only=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
+    ModelRecord("claude-opus-4-7", display_name="Claude 4.7 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, intelligence_tier="frontier", provider="Anthropic"),
+    ModelRecord("claude-4-6-opus", display_name="Claude 4.6 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
+    ModelRecord("claude-4-5-opus", display_name="Claude 4.5 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
+    ModelRecord("claude-4-6-opus-fast", display_name="Claude 4.6 Opus (Fast mode)", tier="premium", in_price=30.0, out_price=150.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
     ModelRecord("gpt-5.4", display_name="GPT-5.4", tier="premium", in_price=2.5, out_price=15.0, is_max_only=True, intelligence_tier="frontier", provider="OpenAI"),
     # ── API-pool per-token (req=0, isMax=false) ────────────────
     ModelRecord("gpt-5.3-codex", display_name="GPT-5.3 Codex", tier="premium", in_price=1.75, out_price=14.0, intelligence_tier="frontier", provider="OpenAI"),
