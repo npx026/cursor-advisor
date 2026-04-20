@@ -449,6 +449,20 @@
       "isHidden": false,
       "intelligenceTier": "frontier",
       "provider": "Cursor"
+    },
+    {
+      "name": "claude-opus-4-7-thinking-high",
+      "displayName": "Claude 4.7 Opus Thinking",
+      "tier": "daily_driver",
+      "inPrice": 5.0,
+      "outPrice": 25.0,
+      "requestPrice": 0.04,
+      "isMaxOnly": false,
+      "isDailyDriver": true,
+      "isFreePreview": false,
+      "isHidden": true,
+      "intelligenceTier": "frontier",
+      "provider": "Anthropic"
     }
   ]
 }

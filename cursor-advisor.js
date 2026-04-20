@@ -45,9 +45,10 @@
 
   const MODEL_DATA = [
     // ── Daily drivers (request-pool, req >= 1) ────────────────────────────
-    { name: 'claude-sonnet-4',          displayName: 'Claude 4 Sonnet',            tier: 'daily_driver', inPrice: 3.0,  outPrice: 15.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
-    { name: 'claude-haiku-4-5',         displayName: 'Claude 4.5 Haiku',           tier: 'daily_driver', inPrice: 1.0,  outPrice: 5.0,   requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'moderate', provider: 'Anthropic' },
-    { name: 'claude-sonnet-4-1m',       displayName: 'Claude 4 Sonnet 1M',         tier: 'daily_driver', inPrice: 6.0,  outPrice: 22.5,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
+    { name: 'claude-4-sonnet',           displayName: 'Claude 4 Sonnet',            tier: 'daily_driver', inPrice: 3.0,  outPrice: 15.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
+    { name: 'claude-4-5-haiku',         displayName: 'Claude 4.5 Haiku',           tier: 'daily_driver', inPrice: 1.0,  outPrice: 5.0,   requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'moderate', provider: 'Anthropic' },
+    { name: 'claude-4-sonnet-1m',       displayName: 'Claude 4 Sonnet 1M',         tier: 'daily_driver', inPrice: 6.0,  outPrice: 22.5,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
+    { name: 'claude-opus-4-7-thinking-high', displayName: 'Claude 4.7 Opus Thinking', tier: 'daily_driver', inPrice: 5.0, outPrice: 25.0, requestPrice: 0.04, isDailyDriver: true, isMaxOnly: false, isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
     { name: 'gemini-3.1-pro',           displayName: 'Gemini 3.1 Pro',             tier: 'daily_driver', inPrice: 2.0,  outPrice: 12.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: false, intelligenceTier: 'frontier', provider: 'Google' },
     { name: 'gemini-3-pro',             displayName: 'Gemini 3 Pro',               tier: 'daily_driver', inPrice: 2.0,  outPrice: 12.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Google' },
     { name: 'gemini-3-flash',           displayName: 'Gemini 3 Flash',             tier: 'daily_driver', inPrice: 0.5,  outPrice: 3.0,   requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'moderate', provider: 'Google' },
@@ -70,11 +71,12 @@
     { name: 'composer-1.5',             displayName: 'Composer 1.5',               tier: 'daily_driver', inPrice: 3.5,  outPrice: 17.5,  requestPrice: 0.08, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Cursor' },
     { name: 'composer-2',               displayName: 'Composer 2',                 tier: 'daily_driver', inPrice: 0.5,  outPrice: 2.5,   requestPrice: 0.08, isDailyDriver: true,  isMaxOnly: false, isHidden: false, intelligenceTier: 'frontier', provider: 'Cursor' },
     // ── Max Mode / per-token (req=0, isMax=true) ──────────────────────────
-    { name: 'claude-sonnet-4-6',        displayName: 'Claude 4.6 Sonnet',          tier: 'premium',      inPrice: 3.0,  outPrice: 15.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: false, intelligenceTier: 'high',     provider: 'Anthropic' },
-    { name: 'claude-sonnet-4-5',        displayName: 'Claude 4.5 Sonnet',          tier: 'premium',      inPrice: 3.0,  outPrice: 15.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
-    { name: 'claude-opus-4-6',          displayName: 'Claude 4.6 Opus',            tier: 'premium',      inPrice: 5.0,  outPrice: 25.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: false, intelligenceTier: 'frontier', provider: 'Anthropic' },
-    { name: 'claude-opus-4-5',          displayName: 'Claude 4.5 Opus',            tier: 'premium',      inPrice: 5.0,  outPrice: 25.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
-    { name: 'claude-opus-4-6-fast',     displayName: 'Claude 4.6 Opus (Fast)',     tier: 'premium',      inPrice: 30.0, outPrice: 150.0, requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
+    { name: 'claude-4-6-sonnet',        displayName: 'Claude 4.6 Sonnet',          tier: 'premium',      inPrice: 3.0,  outPrice: 15.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: false, intelligenceTier: 'high',     provider: 'Anthropic' },
+    { name: 'claude-4-5-sonnet',        displayName: 'Claude 4.5 Sonnet',          tier: 'premium',      inPrice: 3.0,  outPrice: 15.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
+    { name: 'claude-4-6-opus',          displayName: 'Claude 4.6 Opus',            tier: 'premium',      inPrice: 5.0,  outPrice: 25.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: false, intelligenceTier: 'frontier', provider: 'Anthropic' },
+    { name: 'claude-4-5-opus',          displayName: 'Claude 4.5 Opus',            tier: 'premium',      inPrice: 5.0,  outPrice: 25.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
+    { name: 'claude-4-6-opus-fast',     displayName: 'Claude 4.6 Opus (Fast)',     tier: 'premium',      inPrice: 30.0, outPrice: 150.0, requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
+    { name: 'claude-opus-4-7',          displayName: 'Claude 4.7 Opus',            tier: 'premium',      inPrice: 5.0,  outPrice: 25.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: false, intelligenceTier: 'frontier', provider: 'Anthropic' },
     { name: 'gpt-5.4',                  displayName: 'GPT-5.4',                    tier: 'premium',      inPrice: 2.5,  outPrice: 15.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: true,  isHidden: false, intelligenceTier: 'frontier', provider: 'OpenAI' },
     // ── API-pool per-token (req=0, isMax=false) ───────────────────────────
     { name: 'gpt-5.3-codex',            displayName: 'GPT-5.3 Codex',              tier: 'premium',      inPrice: 1.75, outPrice: 14.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: false, isHidden: false, intelligenceTier: 'frontier', provider: 'OpenAI' },
@@ -95,23 +97,26 @@
   // ── Model selection state ─────────────────────────────────────────────────
   const LS_KEY_SELECTED = 'advisorSelectedModels';
   const DEFAULT_SELECTED_MODELS = new Set([
-    'claude-sonnet-4', 'claude-haiku-4-5', 'claude-opus-4-5', 'claude-sonnet-4-5',
-    'claude-opus-4-6', 'claude-sonnet-4-6', 'composer-1.5', 'gemini-3-flash',
-    'gemini-3-pro', 'gemini-3.1-pro', 'gpt-5-mini', 'gpt-5.2', 'gpt-5.3-codex',
-    'gpt-5.4',
+    'claude-4-sonnet', 'claude-4-5-haiku', 'claude-4-5-opus', 'claude-4-5-sonnet',
+    'claude-4-6-opus', 'claude-4-6-sonnet', 'claude-opus-4-7-thinking-high',
+    'composer-1.5', 'gemini-3-flash', 'gemini-3-pro', 'gemini-3.1-pro',
+    'gpt-5-mini', 'gpt-5.2', 'gpt-5.3-codex', 'gpt-5.4',
   ]);
 
   let _selectedModelNames = null;
 
   function loadSelectedModels(allModels) {
+    const validNames = new Set(allModels.map(m => m.name));
     try {
       const raw = localStorage.getItem(LS_KEY_SELECTED);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) { _selectedModelNames = new Set(parsed); return; }
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter(n => validNames.has(n));
+          if (valid.length > 0) { _selectedModelNames = new Set(valid); return; }
+        }
       }
     } catch (_) {}
-    const validNames = new Set(allModels.map(m => m.name));
     _selectedModelNames = new Set([...DEFAULT_SELECTED_MODELS].filter(n => validNames.has(n)));
   }
 
