@@ -79,92 +79,106 @@
         </div>
       </div>
 
+      <!-- Main layout: collapsible panels + output -->
+      <div class="advisor-layout">
+
       <!-- Config panel -->
-      <div class="config-panel" aria-label="Plan configuration">
-        <div class="config-panel-title">Your Cursor Plan</div>
-        <div class="config-grid">
-
-          <div class="config-field">
-            <label for="cfg-premium-req">Included credits / cycle</label>
-            <div class="input-wrap">
-              <input type="number" id="cfg-premium-req" value="500" min="0" step="any" placeholder="500" />
-            </div>
+      <details class="advisor-card" id="config-card" aria-label="Plan configuration">
+        <summary class="advisor-card-header advisor-card-summary">
+          <div class="summary-text">
+            <h2>Your Cursor Plan</h2>
+            <span class="card-subtitle" id="config-summary-text">Expand to configure credits, budget &amp; discounts</span>
           </div>
-
-          <div class="config-field">
-            <label for="cfg-budget">On-demand budget</label>
-            <div class="input-wrap">
-              <span class="input-prefix" aria-hidden="true">$</span>
-              <input type="number" id="cfg-budget" class="has-prefix" value="20" min="0" step="any" placeholder="20" />
-            </div>
-          </div>
-
-        </div>
-
-        <details class="config-advanced">
-          <summary>Advanced</summary>
-          <div class="config-grid config-grid--advanced">
+          <svg class="collapse-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="advisor-card-body config-body">
+          <div class="config-grid">
 
             <div class="config-field">
-              <label for="cfg-flat-rate">Flat rate per credit</label>
+              <label for="cfg-premium-req">Included credits / cycle</label>
+              <div class="input-wrap">
+                <input type="number" id="cfg-premium-req" value="500" min="0" step="any" placeholder="500" />
+              </div>
+            </div>
+
+            <div class="config-field">
+              <label for="cfg-budget">On-demand budget</label>
               <div class="input-wrap">
                 <span class="input-prefix" aria-hidden="true">$</span>
-                <input type="number" id="cfg-flat-rate" class="has-prefix" value="0.04" min="0.001" step="any" placeholder="0.04" />
+                <input type="number" id="cfg-budget" class="has-prefix" value="20" min="0" step="any" placeholder="20" />
               </div>
-              <span class="config-hint">Cost of one request-pool credit (default $0.04)</span>
-            </div>
-
-            <div class="config-field">
-              <label for="cfg-overhead">Max Mode overhead</label>
-              <div class="input-wrap">
-                <input type="number" id="cfg-overhead" value="1.20" min="1" step="any" placeholder="1.20" />
-              </div>
-              <span class="config-hint">Multiplier applied to API token cost (default 1.20 = 20% surcharge)</span>
-            </div>
-
-            <!-- Discount configuration -->
-            <div class="config-field config-field--full">
-              <div class="discount-section-label">Pricing discount</div>
-            </div>
-
-            <div class="config-field">
-              <label for="cfg-discount-pct">Discount percentage</label>
-              <div class="input-wrap">
-                <input type="number" id="cfg-discount-pct" value="50" min="0" max="100" step="1" placeholder="50" />
-                <span class="input-suffix" aria-hidden="true">%</span>
-              </div>
-              <span class="config-hint">Applied as a multiplier to model cost (0 = no discount)</span>
-            </div>
-
-            <div class="config-field">
-              <label for="cfg-discount-scope">Discount applies to</label>
-              <div class="input-wrap">
-                <select id="cfg-discount-scope">
-                  <option value="frontier">Frontier models only</option>
-                  <option value="all">All models</option>
-                  <option value="none">None (disabled)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="config-field">
-              <label for="cfg-discount-expiry">Discount expiry date</label>
-              <div class="input-wrap">
-                <input type="date" id="cfg-discount-expiry" value="2026-04-30" />
-              </div>
-              <span class="config-hint" id="discount-expiry-status"></span>
             </div>
 
           </div>
-        </details>
-      </div>
+
+          <details class="config-advanced">
+            <summary>Advanced</summary>
+            <div class="config-grid config-grid--advanced">
+
+              <div class="config-field">
+                <label for="cfg-flat-rate">Flat rate per credit</label>
+                <div class="input-wrap">
+                  <span class="input-prefix" aria-hidden="true">$</span>
+                  <input type="number" id="cfg-flat-rate" class="has-prefix" value="0.04" min="0.001" step="any" placeholder="0.04" />
+                </div>
+                <span class="config-hint">Cost of one request-pool credit (default $0.04)</span>
+              </div>
+
+              <div class="config-field">
+                <label for="cfg-overhead">Max Mode overhead</label>
+                <div class="input-wrap">
+                  <input type="number" id="cfg-overhead" value="1.20" min="1" step="any" placeholder="1.20" />
+                </div>
+                <span class="config-hint">Multiplier applied to API token cost (default 1.20 = 20% surcharge)</span>
+              </div>
+
+              <!-- Discount configuration -->
+              <div class="config-field config-field--full">
+                <div class="discount-section-label">Pricing discount</div>
+              </div>
+
+              <div class="config-field">
+                <label for="cfg-discount-pct">Discount percentage</label>
+                <div class="input-wrap">
+                  <input type="number" id="cfg-discount-pct" value="50" min="0" max="100" step="1" placeholder="50" />
+                  <span class="input-suffix" aria-hidden="true">%</span>
+                </div>
+                <span class="config-hint">Applied as a multiplier to model cost (0 = no discount)</span>
+              </div>
+
+              <div class="config-field">
+                <label for="cfg-discount-scope">Discount applies to</label>
+                <div class="input-wrap">
+                  <select id="cfg-discount-scope">
+                    <option value="frontier">Frontier models only</option>
+                    <option value="all">All models</option>
+                    <option value="none">None (disabled)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-field">
+                <label for="cfg-discount-expiry">Discount expiry date</label>
+                <div class="input-wrap">
+                  <input type="date" id="cfg-discount-expiry" value="2026-04-30" />
+                </div>
+                <span class="config-hint" id="discount-expiry-status"></span>
+              </div>
+
+            </div>
+          </details>
+        </div>
+      </details>
 
       <!-- Model selection -->
-      <section class="advisor-card" id="model-selection-card" aria-label="Available models">
-        <div class="advisor-card-header">
-          <h2>Available Models</h2>
-          <span class="card-subtitle">Select which models to include in advisor calculations</span>
-        </div>
+      <details class="advisor-card" id="model-selection-card" aria-label="Available models">
+        <summary class="advisor-card-header advisor-card-summary">
+          <div class="summary-text">
+            <h2>Available Models</h2>
+            <span class="card-subtitle" id="model-sel-card-subtitle">Loading…</span>
+          </div>
+          <svg class="collapse-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
         <div class="advisor-card-body">
           <div class="model-sel-toolbar">
             <div class="model-sel-search-wrap">
@@ -178,7 +192,7 @@
           <div class="model-sel-summary" id="model-sel-summary"></div>
           <ul class="model-sel-list" id="model-sel-list" role="list"></ul>
         </div>
-      </section>
+      </details>
 
       <!-- Output sections -->
       <div class="advisor-sections">
@@ -228,6 +242,8 @@
         </div>
 
       </div><!-- /.advisor-sections -->
+
+      </div><!-- /.advisor-layout -->
 
     </div><!-- /.container -->
   </main>

@@ -444,11 +444,29 @@
       if (!m) return '';
       const cr     = creditsPerReq(m, cfg) || 1;
       const inclR  = Math.floor(cfg.premiumRequests / cr);
-      const ondemR = Math.floor(cfg.onDemandBudget / (m.requestPrice ?? cfg.flatRate));
-      const priceStr = fmtCost(m.requestPrice ?? cfg.flatRate);
+      const driverPrice = costPerRequest(m, 0, 0, cfg, discountInfo);
+      const ondemR = driverPrice > 0 ? Math.floor(cfg.onDemandBudget / driverPrice) : 0;
+      const priceStr = fmtCost(driverPrice);
       const ondemPart = ondemR > 0
         ? `<div class="ddb-stat"><span class="ddb-stat-val">+${ondemR.toLocaleString()}</span><span class="ddb-stat-lbl">on-demand reqs</span></div>`
         : '';
+
+      // Discount tip: if a discounted frontier Max Mode model is cheaper than the driver for a medium task, mention it
+      const medium = TASKS.find(t => t.key === 'medium') || TASKS[1];
+      const cheaperFrontier = discountInfo.active ? (() => {
+        const frontierMaxModels = models.filter(m2 => m2.isMaxOnly && isModelDiscounted(m2, discountInfo));
+        if (!frontierMaxModels.length) return null;
+        const best = frontierMaxModels.reduce((b, m2) =>
+          costPerRequest(m2, medium.in, medium.out, cfg, discountInfo) <
+          costPerRequest(b, medium.in, medium.out, cfg, discountInfo) ? m2 : b);
+        const bestCost = costPerRequest(best, medium.in, medium.out, cfg, discountInfo);
+        return bestCost < driverPrice ? { model: best, cost: bestCost } : null;
+      })() : null;
+
+      const discountTip = cheaperFrontier
+        ? `<div class="ddb-discount-tip">💡 With your ${cfg.discountPct}% discount, <strong>${modelLabel(cheaperFrontier.model)}</strong> costs ${fmtCost(cheaperFrontier.cost)}/medium task — cheaper than this driver from your on-demand budget.</div>`
+        : '';
+
       return `
         <div class="daily-driver-banner">
           <div class="ddb-top">
@@ -464,6 +482,7 @@
             </div>
           </div>
           <div class="ddb-note">Flat-rate billing from your request pool — best choice for most everyday tasks. Costs draw from included credits first, then on-demand budget.</div>
+          ${discountTip}
         </div>`;
     })();
 
@@ -727,12 +746,24 @@
       </div>`;
   }
 
-  // ── Render: Header subtitle ───────────────────────────────────────────────
-  function renderSubtitle(cfg) {
+  // ── Render: Header subtitle + config card summary ────────────────────────
+  function renderSubtitle(cfg, discountInfo) {
     const el = document.getElementById('header-subtitle');
     if (el) {
       const credits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
       el.textContent = `${cfg.premiumRequests.toLocaleString()} included credits · $${cfg.onDemandBudget.toFixed(0)} on-demand (${credits.toLocaleString()} credits @ ${fmtCost(cfg.flatRate)}/req)`;
+    }
+    const configSub = document.getElementById('config-summary-text');
+    if (configSub) {
+      const parts = [
+        `${cfg.premiumRequests.toLocaleString()} credits`,
+        `$${cfg.onDemandBudget.toFixed(0)} on-demand`,
+      ];
+      if (discountInfo && discountInfo.active) {
+        const scope = cfg.discountScope === 'all' ? 'all models' : 'frontier models';
+        parts.push(`${cfg.discountPct}% off ${scope} · ${discountInfo.daysRemaining}d left`);
+      }
+      configSub.textContent = parts.join(' · ');
     }
   }
 
@@ -842,11 +873,18 @@
       list.appendChild(groupEl);
     }
 
+    const selectedCount = _selectedModelNames ? allModels.filter(m => _selectedModelNames.has(m.name)).length : 0;
+    const noSelNote = (_selectedModelNames && _selectedModelNames.size === 0)
+      ? ' — showing defaults (no models selected)' : '';
+
     if (summary) {
-      const selectedCount = _selectedModelNames ? allModels.filter(m => _selectedModelNames.has(m.name)).length : 0;
-      const note = (_selectedModelNames && _selectedModelNames.size === 0)
-        ? ' — showing defaults (no models selected)' : '';
-      summary.textContent = `${selectedCount} of ${allModels.length} models selected${note}`;
+      summary.textContent = `${selectedCount} of ${allModels.length} models selected${noSelNote}`;
+    }
+
+    // Update the collapsible card subtitle with selected count
+    const cardSubtitle = document.getElementById('model-sel-card-subtitle');
+    if (cardSubtitle) {
+      cardSubtitle.textContent = `${selectedCount} of ${allModels.length} models selected`;
     }
 
     // Event delegation for toggles
@@ -871,7 +909,7 @@
     const models       = getActiveModels(allModels);
     const discountInfo = getDiscountInfo(cfg);
     renderModelSelectionCard(allModels, cfg, discountInfo);
-    renderSubtitle(cfg);
+    renderSubtitle(cfg, discountInfo);
     renderDiscountStatus(cfg, discountInfo);
     renderTldr(models, cfg, discountInfo);
     renderRequestPool(models, cfg, discountInfo);
@@ -882,9 +920,12 @@
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   let _activeModels = MODEL_DATA;
 
-  // Render model selection immediately with static data so the list is never empty on load
+  // Render model selection + config subtitle immediately so nothing is empty on load
   loadSelectedModels(MODEL_DATA);
-  renderModelSelectionCard(MODEL_DATA, getConfig(), getDiscountInfo(getConfig()));
+  const _initCfg = getConfig();
+  const _initDi  = getDiscountInfo(_initCfg);
+  renderSubtitle(_initCfg, _initDi);
+  renderModelSelectionCard(MODEL_DATA, _initCfg, _initDi);
 
   loadModels().then(({ models, date, source }) => {
     _activeModels = models;

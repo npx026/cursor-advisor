@@ -369,10 +369,51 @@ main {
 /* --------------------------------------------------------------------------
    Advisor Sections
    -------------------------------------------------------------------------- */
+/* Unified layout container — config + model selection + output sections */
+.advisor-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .advisor-sections {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+/* Collapsible advisor cards (config + model selection) */
+.advisor-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.advisor-card-summary::-webkit-details-marker { display: none; }
+.advisor-card-summary::marker { display: none; }
+
+.summary-text {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.collapse-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+details.advisor-card[open] > .advisor-card-summary .collapse-chevron {
+  transform: rotate(180deg);
+}
+
+/* Config card body needs its own padding (advisor-card-body has none by default) */
+.config-body {
+  padding: 1.5rem;
 }
 
 .advisor-card {
@@ -1263,6 +1304,21 @@ html.light-theme .credit-pill--maxmode {
 /* Discount expiry status hint — coloured by JS */
 #discount-expiry-status {
   transition: color var(--transition);
+}
+
+/* Discount tip in daily driver banner */
+.ddb-discount-tip {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.875rem;
+  background: var(--warn-glow);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.ddb-discount-tip strong {
+  color: var(--warn);
 }
 
 @media (max-width: 480px) {
