@@ -1028,3 +1028,245 @@ html.light-theme .credit-pill--maxmode {
     display: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Model Selection Card
+   -------------------------------------------------------------------------- */
+.model-sel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.875rem;
+}
+
+.model-sel-search-wrap {
+  flex: 1;
+  min-width: 180px;
+}
+
+.model-sel-search-wrap input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  padding: 0.4rem 0.75rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.model-sel-search-wrap input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.model-sel-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-sel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.875rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.btn-sel:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+
+.model-sel-summary {
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+  margin-bottom: 0.875rem;
+}
+
+.model-sel-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.model-sel-group {
+  margin-bottom: 0.5rem;
+}
+
+.model-sel-group-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-subtle);
+  padding: 0.375rem 0 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.model-sel-group-items {
+  list-style: none;
+}
+
+.model-sel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  transition: background var(--transition);
+  gap: 0.75rem;
+}
+.model-sel-item:hover {
+  background: var(--surface-2);
+}
+
+.model-sel-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.4;
+  flex-wrap: wrap;
+}
+
+.model-sel-name {
+  font-weight: 500;
+}
+
+.model-sel-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* Toggle switch */
+.model-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.model-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  transition: transform var(--transition), background var(--transition);
+}
+.model-toggle.is-on {
+  background: var(--accent);
+}
+.model-toggle.is-on::after {
+  transform: translateX(16px);
+  background: #fff;
+}
+.model-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Discount badge on model items */
+.discount-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--warn-glow);
+  color: var(--warn);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Discount config section (inside Advanced panel)
+   -------------------------------------------------------------------------- */
+.discount-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-subtle);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
+.config-field--full {
+  grid-column: 1 / -1;
+}
+
+/* Dropdown select styled to match inputs */
+.config-field select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237878a0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  cursor: pointer;
+}
+.config-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Suffix label (e.g. %) positioned inside input-wrap */
+.input-suffix {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+/* Discount expiry status hint — coloured by JS */
+#discount-expiry-status {
+  transition: color var(--transition);
+}
+
+@media (max-width: 480px) {
+  .model-sel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .model-sel-actions {
+    justify-content: flex-end;
+  }
+}

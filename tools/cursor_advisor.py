@@ -111,7 +111,7 @@ def label(m: ModelRecord) -> str:
 
 
 # ── FALLBACK_START ────────────────────────────────────────────
-FALLBACK_DATE = "2026-04-11"
+FALLBACK_DATE = "2026-04-12"
 
 FALLBACK_MODELS: List[ModelRecord] = [
     # ── Daily drivers (request-pool, req>=1) ───────────────────

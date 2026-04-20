@@ -122,9 +122,63 @@
               <span class="config-hint">Multiplier applied to API token cost (default 1.20 = 20% surcharge)</span>
             </div>
 
+            <!-- Discount configuration -->
+            <div class="config-field config-field--full">
+              <div class="discount-section-label">Pricing discount</div>
+            </div>
+
+            <div class="config-field">
+              <label for="cfg-discount-pct">Discount percentage</label>
+              <div class="input-wrap">
+                <input type="number" id="cfg-discount-pct" value="50" min="0" max="100" step="1" placeholder="50" />
+                <span class="input-suffix" aria-hidden="true">%</span>
+              </div>
+              <span class="config-hint">Applied as a multiplier to model cost (0 = no discount)</span>
+            </div>
+
+            <div class="config-field">
+              <label for="cfg-discount-scope">Discount applies to</label>
+              <div class="input-wrap">
+                <select id="cfg-discount-scope">
+                  <option value="frontier">Frontier models only</option>
+                  <option value="all">All models</option>
+                  <option value="none">None (disabled)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="config-field">
+              <label for="cfg-discount-expiry">Discount expiry date</label>
+              <div class="input-wrap">
+                <input type="date" id="cfg-discount-expiry" value="2026-04-30" />
+              </div>
+              <span class="config-hint" id="discount-expiry-status"></span>
+            </div>
+
           </div>
         </details>
       </div>
+
+      <!-- Model selection -->
+      <section class="advisor-card" id="model-selection-card" aria-label="Available models">
+        <div class="advisor-card-header">
+          <h2>Available Models</h2>
+          <span class="card-subtitle">Select which models to include in advisor calculations</span>
+        </div>
+        <div class="advisor-card-body">
+          <div class="model-sel-toolbar">
+            <div class="model-sel-search-wrap">
+              <input type="search" id="model-sel-search" placeholder="Filter models…" autocomplete="off" aria-label="Filter models" />
+            </div>
+            <div class="model-sel-actions">
+              <button class="btn-sel" id="btn-sel-all">Select all</button>
+              <button class="btn-sel" id="btn-sel-none">Deselect all</button>
+            </div>
+          </div>
+          <div class="model-sel-summary" id="model-sel-summary"></div>
+          <ul class="model-sel-list" id="model-sel-list" role="list"></ul>
+        </div>
+      </section>
 
       <!-- Output sections -->
       <div class="advisor-sections">
