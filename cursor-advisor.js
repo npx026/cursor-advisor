@@ -870,17 +870,21 @@
     const cfg          = getConfig();
     const models       = getActiveModels(allModels);
     const discountInfo = getDiscountInfo(cfg);
+    renderModelSelectionCard(allModels, cfg, discountInfo);
     renderSubtitle(cfg);
     renderDiscountStatus(cfg, discountInfo);
     renderTldr(models, cfg, discountInfo);
     renderRequestPool(models, cfg, discountInfo);
     renderApiPool(models, cfg, discountInfo);
     renderMaxMode(models, cfg, discountInfo);
-    renderModelSelectionCard(allModels, cfg, discountInfo);
   }
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   let _activeModels = MODEL_DATA;
+
+  // Render model selection immediately with static data so the list is never empty on load
+  loadSelectedModels(MODEL_DATA);
+  renderModelSelectionCard(MODEL_DATA, getConfig(), getDiscountInfo(getConfig()));
 
   loadModels().then(({ models, date, source }) => {
     _activeModels = models;

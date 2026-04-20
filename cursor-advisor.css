@@ -356,6 +356,7 @@ main {
 
 .config-grid--advanced {
   margin-top: 0.875rem;
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .config-hint {
@@ -1069,8 +1070,11 @@ html.light-theme .credit-pill--maxmode {
 }
 
 .btn-sel {
+  appearance: none;
+  -webkit-appearance: none;
   font-size: 0.75rem;
   font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif;
   padding: 0.35rem 0.875rem;
   border-radius: var(--radius);
   border: 1px solid var(--border);
