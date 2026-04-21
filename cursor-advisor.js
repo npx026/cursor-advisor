@@ -205,14 +205,15 @@
     const candidates = models.filter(m => m.isDailyDriver && m.isHidden === hidden);
     if (!candidates.length) return null;
     const getPrice = m => costPerRequest(m, 0, 0, cfg, discountInfo);
-    const minPrice = Math.min(...candidates.map(getPrice));
-    const cheapest = candidates.filter(m => getPrice(m) === minPrice);
-    return cheapest.reduce((best, m) => {
-      const ka = [TIER_RANK[m.intelligenceTier] ?? 9, PROVIDER_RANK[m.provider] ?? 9, (m.displayName || m.name).length];
-      const kb = [TIER_RANK[best.intelligenceTier] ?? 9, PROVIDER_RANK[best.provider] ?? 9, (best.displayName || best.name).length];
-      for (let i = 0; i < ka.length; i++) { if (ka[i] !== kb[i]) return ka[i] < kb[i] ? m : best; }
-      return best;
-    });
+    return candidates.reduce((best, m) => {
+      const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[best.intelligenceTier] ?? 9;
+      if (tierM !== tierB) return tierM < tierB ? m : best;
+      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[best.provider] ?? 9;
+      if (provM !== provB) return provM < provB ? m : best;
+      const costM = getPrice(m), costB = getPrice(best);
+      if (costM !== costB) return costM < costB ? m : best;
+      return (m.displayName || m.name).length < (best.displayName || best.name).length ? m : best;
+    }, candidates[0]);
   }
 
   function bestModelForTask(models, preferredTier, strategy, inTok, outTok, cfg, discountInfo) {
