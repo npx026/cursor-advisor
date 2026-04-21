@@ -261,7 +261,7 @@
     const cheapestDrivers = drivers.filter(m => getPrice(m) === minPrice);
     const quickModel = cheapestDrivers.reduce((b, m) => {
       const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[b.intelligenceTier] ?? 9;
-      if (tierM !== tierB) return tierM > tierB ? m : b;  // prefer more moderate
+      if (tierM !== tierB) return tierM < tierB ? m : b;  // prefer best capable at same price
       const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
       if (provM !== provB) return provM < provB ? m : b;
       return (m.displayName || m.name).length < (b.displayName || b.name).length ? m : b;
