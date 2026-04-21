@@ -311,13 +311,15 @@
       const ondemPart   = ondemR > 0
         ? `<div class="ddb-stat"><span class="ddb-stat-val">+${ondemR.toLocaleString()}</span><span class="ddb-stat-lbl">on-demand reqs</span></div>`
         : '';
+      const ddbDiscBadge = (discountInfo.active && isModelDiscounted(m, discountInfo))
+        ? `&ensp;&middot;&ensp;<span class="discount-badge discount-badge--card">${cfg.discountPct}% off · ${discountInfo.daysRemaining}d left</span>` : '';
       return `
-        <div class="daily-driver-banner">
+        <div class="daily-driver-banner${discountInfo.active && isModelDiscounted(m, discountInfo) ? ' is-discounted' : ''}">
           <div class="ddb-top">
             <div class="ddb-left">
               <span class="ddb-eyebrow">Recommended daily driver</span>
               <div class="ddb-model">${modelLabel(m)}</div>
-              <div class="ddb-meta">${m.provider}&ensp;&middot;&ensp;${tierBadge(m.intelligenceTier)}&ensp;&middot;&ensp;${creditPill(cr)}</div>
+              <div class="ddb-meta">${m.provider}&ensp;&middot;&ensp;${tierBadge(m.intelligenceTier)}&ensp;&middot;&ensp;${creditPill(cr)}${ddbDiscBadge}</div>
             </div>
             <div class="ddb-stats">
               <div class="ddb-stat"><span class="ddb-stat-val">${inclR.toLocaleString()}</span><span class="ddb-stat-lbl">incl. reqs / cycle</span></div>

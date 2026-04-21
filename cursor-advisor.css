@@ -1357,8 +1357,9 @@ html.light-theme .credit-pill--maxmode {
   vertical-align: middle;
 }
 
-/* Subtle left border on discounted scenario cards */
-.scenario-card.is-discounted {
+/* Subtle left border on discounted scenario cards / banner */
+.scenario-card.is-discounted,
+.daily-driver-banner.is-discounted {
   border-left: 3px solid var(--warn);
 }
 
