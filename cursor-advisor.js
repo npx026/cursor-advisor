@@ -259,7 +259,10 @@
     const getPrice = m => costPerRequest(m, 0, 0, cfg, discountInfo);
     const minPrice = drivers.length ? Math.min(...drivers.map(getPrice)) : Infinity;
     const cheapestDrivers = drivers.filter(m => getPrice(m) === minPrice);
-    const quickModel = cheapestDrivers.reduce((b, m) => {
+    // Exclude standardModel so the two cards are always distinct; if no alternative exists, fall back to all cheapest
+    const quickPool = cheapestDrivers.filter(m => m !== standardModel);
+    const quickCandidates = quickPool.length > 0 ? quickPool : cheapestDrivers;
+    const quickModel = quickCandidates.reduce((b, m) => {
       const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[b.intelligenceTier] ?? 9;
       if (tierM !== tierB) return tierM < tierB ? m : b;  // prefer best capable at same price
       const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
