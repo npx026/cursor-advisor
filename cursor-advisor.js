@@ -82,14 +82,6 @@
     { name: 'gpt-5.3-codex',            displayName: 'GPT-5.3 Codex',              tier: 'premium',      inPrice: 1.75, outPrice: 14.0,  requestPrice: null, isDailyDriver: false, isMaxOnly: false, isHidden: false, intelligenceTier: 'frontier', provider: 'OpenAI' },
   ];
 
-  // ── Task Definitions ──────────────────────────────────────────────────────
-  const TASKS = [
-    { key: 'heavy',   label: 'Complex (refactor / arch / debug)', in: 12000, out: 2000, preferredTier: 'premium',  strategy: 'quality' },
-    { key: 'medium',  label: 'Medium (feature / code review)',    in: 6000,  out: 800,  preferredTier: 'premium',  strategy: 'value'   },
-    { key: 'light',   label: 'Light (small fix / explain)',       in: 2000,  out: 300,  preferredTier: 'standard', strategy: 'value'   },
-    { key: 'trivial', label: 'Trivial (autocomplete / rename)',   in: 500,   out: 100,  preferredTier: 'free',     strategy: 'value'   },
-  ];
-
   // ── Provider / Tier Ranking ───────────────────────────────────────────────
   const PROVIDER_RANK  = { Anthropic: 0, OpenAI: 1, Google: 2, xAI: 3, Cursor: 4 };
   const TIER_RANK      = { frontier: 0, high: 1, moderate: 2 };
@@ -104,7 +96,6 @@
   ]);
 
   let _selectedModelNames = null;
-  let _selectedScenario   = 'Build';
 
   function loadSelectedModels(allModels) {
     const validNames = new Set(allModels.map(m => m.name));
@@ -212,25 +203,13 @@
     return candidates.reduce((best, m) => {
       const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[best.intelligenceTier] ?? 9;
       if (tierM !== tierB) return tierM < tierB ? m : best;
-      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[best.provider] ?? 9;
-      if (provM !== provB) return provM < provB ? m : best;
+      // Cost before provider: a 2-credit model stays expensive even with a preferred provider
       const costM = getPrice(m), costB = getPrice(best);
       if (costM !== costB) return costM < costB ? m : best;
+      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[best.provider] ?? 9;
+      if (provM !== provB) return provM < provB ? m : best;
       return (m.displayName || m.name).length < (best.displayName || best.name).length ? m : best;
     }, candidates[0]);
-  }
-
-  function bestModelForTask(models, preferredTier, strategy, inTok, outTok, cfg, discountInfo) {
-    const tierOrder = { premium: ['premium', 'standard'], standard: ['standard', 'premium'], free: ['free', 'standard'] };
-    const eligible = models.filter(m => !m.isMaxOnly && m.tier !== 'daily_driver' && m.requestPrice === null && m.inPrice > 0);
-    const cpr = (m) => costPerRequest(m, inTok, outTok, cfg, discountInfo);
-    for (const tier of (tierOrder[preferredTier] || ['standard'])) {
-      const candidates = eligible.filter(m => m.tier === tier);
-      if (!candidates.length) continue;
-      if (strategy === 'quality') return candidates.reduce((b, m) => (m.inPrice + m.outPrice) > (b.inPrice + b.outPrice) ? m : b);
-      return candidates.reduce((b, m) => cpr(m) < cpr(b) ? m : b);
-    }
-    return eligible.length ? eligible.reduce((b, m) => cpr(m) < cpr(b) ? m : b) : null;
   }
 
   // ── Formatting helpers ────────────────────────────────────────────────────
@@ -270,186 +249,41 @@
     return `<span class="credit-pill credit-pill--multi">&#9679;&times;${credits} credits</span>`;
   }
 
-  // ── Model-selection helpers for Quick Guide ──────────────────────────────
-
-  // Returns { best, value, bestVal } for Plan mode.
-  // best  — highest-intelligence visible model (may be isMaxOnly)
-  // value — best visible request-pool (driver) model (never isMaxOnly)
-  // bestVal — cheapest driver with intelligence ≥ "high", distinct from above
-  function pickPlanModels(models, cfg, discountInfo) {
-    const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
-    const allVisible = models.filter(m => !m.isHidden);
-    if (!allVisible.length) return { best: null, value: null, bestVal: null };
-
-    const best = allVisible.reduce((b, m) => {
-      const tierM = TIER_RANK[m.intelligenceTier] ?? 9;
-      const tierB = TIER_RANK[b.intelligenceTier] ?? 9;
-      if (tierM !== tierB) return tierM < tierB ? m : b;
-      const premM = m.isMaxOnly ? 0 : (m.requestPrice !== null ? 2 : 1);
-      const premB = b.isMaxOnly ? 0 : (b.requestPrice !== null ? 2 : 1);
-      if (premM !== premB) return premM > premB ? m : b;  // request-pool > api-pool > max-mode
-      const costM = costPerRequest(m, heavy.in, heavy.out, cfg, discountInfo);
-      const costB = costPerRequest(b, heavy.in, heavy.out, cfg, discountInfo);
-      if (m.isMaxOnly) return costM > costB ? m : b;
-      if (costM !== costB) return costM < costB ? m : b;
-      // Equal cost: prefer by provider rank then shorter display name (base model wins)
-      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
-      if (provM !== provB) return provM < provB ? m : b;
-      return (m.displayName || m.name).length < (b.displayName || b.name).length ? m : b;
-    });
-
-    const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
-    const driversSorted = drivers.slice().sort(cmpTierKey);
-    const value = best.isDailyDriver
-      ? (driversSorted.filter(m => m !== best)[0] || null)
-      : (driversSorted[0] || null);
-
-    const remaining = drivers.filter(m => m !== best && m !== value);
-    const bestVal = remaining.length ? remaining.slice().sort(cmpTierKey)[0] : null;
-
-    return { best, value, bestVal };
-  }
-
-  // Returns { best, value, bestVal } for Build (request-pool only, visible drivers).
-  function pickDriverTriple(models, cfg, discountInfo) {
-    const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
-    if (!drivers.length) return { best: null, value: null, bestVal: null };
-
-    const best = pickBestDriver(models, false, cfg, discountInfo);
-    const others = drivers.filter(m => m !== best);
-
-    let value = null;
-    if (others.length) {
-      const getPrice = m => costPerRequest(m, 0, 0, cfg, discountInfo);
-      const minReqPrice = Math.min(...others.map(getPrice));
-      const tied = others.filter(m => getPrice(m) === minReqPrice);
-      value = tied.reduce((b, m) =>
-        (TIER_RANK[m.intelligenceTier] ?? 9) > (TIER_RANK[b.intelligenceTier] ?? 9) ? m : b, tied[0]);
-    }
-
-    const remaining = others.filter(m => m !== value);
-    const bestVal = remaining.length
-      ? remaining.reduce((b, m) => cmpTierKey(m, b) < 0 ? m : b)
-      : null;
-
-    return { best, value, bestVal };
-  }
-
-  // Returns { best, value, bestVal } for Quick Edit (visible drivers only, favour cheapest/fastest).
-  function pickEditTriple(models, cfg, discountInfo) {
-    const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
-    if (!drivers.length) return { best: null, value: null, bestVal: null };
-
-    const getPrice = m => costPerRequest(m, 0, 0, cfg, discountInfo);
-    const minPrice = Math.min(...drivers.map(getPrice));
-    const cheapest = drivers.filter(m => getPrice(m) === minPrice);
-    const best = cheapest.reduce((b, m) => {
-      const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[b.intelligenceTier] ?? 9;
-      if (tierM !== tierB) return tierM > tierB ? m : b;  // prefer more moderate (faster)
-      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
-      if (provM !== provB) return provM < provB ? m : b;
-      return (m.displayName || m.name).length < (b.displayName || b.name).length ? m : b;
-    }, cheapest[0]);
-
-    const rest = drivers.filter(m => m !== best).sort((a, b) => {
-      const ca = getPrice(a), cb = getPrice(b);
-      if (ca !== cb) return ca - cb;
-      const tr = (TIER_RANK[b.intelligenceTier] ?? 9) - (TIER_RANK[a.intelligenceTier] ?? 9);
-      if (tr !== 0) return tr;
-      return (PROVIDER_RANK[a.provider] ?? 9) - (PROVIDER_RANK[b.provider] ?? 9);
-    });
-    const value   = rest[0] || null;
-    const bestVal = rest.filter(m => m !== value)[0] || null;
-
-    return { best, value, bestVal };
-  }
-
-  // ── Render: Quick Guide (scenario tabs with 3 cards each) ────────────────
+  // ── Render: Quick Guide (2 cards: Standard + Quick Edit) ─────────────────
   function renderTldr(models, cfg, discountInfo) {
-    const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
+    // Standard: best frontier request-pool driver (tier → cost → provider)
+    const standardModel  = pickBestDriver(models, false, cfg, discountInfo);
 
-    const { best: planBest,  value: planAlt,   bestVal: planPremium  } = pickPlanModels(models, cfg, discountInfo);
-    const { best: buildBest, value: buildAlt,  bestVal: buildPremium } = pickDriverTriple(models, cfg, discountInfo);
-    const { best: editBest,  value: editAlt,   bestVal: editPremium  } = pickEditTriple(models, cfg, discountInfo);
+    // Quick Edit: cheapest driver, preferring most-moderate tier then provider
+    const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
+    const getPrice = m => costPerRequest(m, 0, 0, cfg, discountInfo);
+    const minPrice = drivers.length ? Math.min(...drivers.map(getPrice)) : Infinity;
+    const cheapestDrivers = drivers.filter(m => getPrice(m) === minPrice);
+    const quickModel = cheapestDrivers.reduce((b, m) => {
+      const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[b.intelligenceTier] ?? 9;
+      if (tierM !== tierB) return tierM > tierB ? m : b;  // prefer more moderate
+      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
+      if (provM !== provB) return provM < provB ? m : b;
+      return (m.displayName || m.name).length < (b.displayName || b.name).length ? m : b;
+    }, cheapestDrivers[0] || null);
 
-    const tierCap = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
-    const crNote  = m => { const c = creditsPerReq(m, cfg, discountInfo) || 1; return c === 1 ? '1 credit' : `${c} credits`; };
-    const buildBestPrice = buildBest ? costPerRequest(buildBest, 0, 0, cfg, discountInfo) : cfg.flatRate;
-    const drvRate = fmtCost(buildBestPrice);
-
-    const planBestReason = planBest ? (planBest.isMaxOnly
-      ? `Max Mode — per-token billing, bypasses the credit pool`
-      : `Highest flat-rate intelligence`) : '';
-    const planAltReason = planAlt ? (planAlt === buildBest
-      ? `The recommended daily driver — best flat-rate quality at ${drvRate}/req`
-      : `Best flat-rate option — ${tierCap(planAlt.intelligenceTier)} tier at ${crNote(planAlt)}`) : '';
-    const planPremiumReason = planPremium ? (() => {
-      const cr = creditsPerReq(planPremium, cfg, discountInfo) || 1;
-      const dCr = buildBest ? (creditsPerReq(buildBest, cfg, discountInfo) || 1) : 1;
-      return cr > dCr
-        ? `Frontier flat-rate at ${cr} credits — between daily driver and Max Mode`
-        : `${tierCap(planPremium.intelligenceTier)} flat-rate at ${crNote(planPremium)}`;
-    })() : '';
-
-    const buildBestReason   = buildBest ? `Recommended daily driver — highest-tier flat-rate model` : '';
-    const buildAltReason    = buildAlt ? (() => {
-      const p = costPerRequest(buildAlt, 0, 0, cfg, discountInfo);
-      return p === buildBestPrice
-        ? `Same ${drvRate} rate — ${tierCap(buildAlt.intelligenceTier)} tier for lighter tasks`
-        : `Cheapest driver — ${tierCap(buildAlt.intelligenceTier)} tier at ${fmtCost(p)}/req`;
-    })() : '';
-    const buildPremiumReason = buildPremium
-      ? `${tierCap(buildPremium.intelligenceTier)} tier at ${crNote(buildPremium)} — best quality above the minimum rate`
-      : '';
-
-    const editBestPrice     = editBest ? costPerRequest(editBest, 0, 0, cfg, discountInfo) : cfg.flatRate;
-    const editBestReason    = editBest ? `Lightest &amp; fastest — minimum cost for quick tasks` : '';
-    const editAltReason     = editAlt ? (() => {
-      const p = costPerRequest(editAlt, 0, 0, cfg, discountInfo);
-      return p === editBestPrice
-        ? `${tierCap(editAlt.intelligenceTier)} quality at the same ${fmtCost(p)} rate — more capable for same cost`
-        : `Cheapest remaining — ${tierCap(editAlt.intelligenceTier)} tier at ${fmtCost(p)}/req`;
-    })() : '';
-    const editPremiumReason  = editPremium
-      ? `${tierCap(editPremium.intelligenceTier)} tier at ${crNote(editPremium)} — when precision matters more than speed`
-      : '';
-
-    function scenarioCard(model, tag, reason) {
+    function scenarioCard(model, tag, label, reason) {
       if (!model) return '';
-      const isMax   = !!model.isMaxOnly;
-      const price   = isMax
-        ? costPerRequest(model, heavy.in, heavy.out, cfg, discountInfo)
-        : costPerRequest(model, 0, 0, cfg, discountInfo);
-      const costStr = fmtCost(price) + '/req';
-
-      let billingHtml;
-      if (isMax) {
-        const reqs = price > 0 ? Math.floor(cfg.onDemandBudget / price) : 0;
-        const mult = cfg.flatRate > 0 ? (price / cfg.flatRate).toFixed(1) : '?';
-        billingHtml = `
-          <span class="credit-pill credit-pill--maxmode">Max Mode &middot; per-token</span>
-          <div class="scenario-budget">~${reqs.toLocaleString()} reqs for $${cfg.onDemandBudget.toFixed(0)} &middot; ${mult}&times; vs driver</div>`;
-      } else {
-        const cr      = creditsPerReq(model, cfg, discountInfo) || 1;
-        const inclR   = Math.floor(cfg.premiumRequests / cr);
-        const effPrice = price; // already computed above using costPerRequest (discounted)
-        const ondemR  = effPrice > 0 ? Math.floor(cfg.onDemandBudget / effPrice) : 0;
-        const budgetPart = ondemR > 0 ? ` + ${ondemR.toLocaleString()} on-demand` : '';
-        billingHtml = `
-          ${creditPill(cr)}
-          <div class="scenario-budget">${inclR.toLocaleString()} included${budgetPart} reqs</div>`;
-      }
-
-      const hiddenId   = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
-      const tagCls     = tag === 'Best' ? 'scenario-tag--best' : tag === 'Alternative' ? 'scenario-tag--budget' : 'scenario-tag--smart';
-      const reasonHtml = reason ? `<div class="scenario-reason">${reason}</div>` : '';
-      const discBadge  = (discountInfo.active && isModelDiscounted(model, discountInfo))
+      const price    = costPerRequest(model, 0, 0, cfg, discountInfo);
+      const costStr  = fmtCost(price) + '/req';
+      const cr       = creditsPerReq(model, cfg, discountInfo) || 1;
+      const inclR    = Math.floor(cfg.premiumRequests / cr);
+      const ondemR   = price > 0 ? Math.floor(cfg.onDemandBudget / price) : 0;
+      const budgetPart  = ondemR > 0 ? ` + ${ondemR.toLocaleString()} on-demand` : '';
+      const hiddenId    = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
+      const tagCls      = tag === 'standard' ? 'scenario-tag--best' : 'scenario-tag--budget';
+      const reasonHtml  = reason ? `<div class="scenario-reason">${reason}</div>` : '';
+      const discBadge   = (discountInfo.active && isModelDiscounted(model, discountInfo))
         ? `<span class="discount-badge discount-badge--card">${cfg.discountPct}% off · ${discountInfo.daysRemaining}d left</span>` : '';
-
       return `
         <div class="scenario-card${discountInfo.active && isModelDiscounted(model, discountInfo) ? ' is-discounted' : ''}">
           <div class="scenario-header">
-            <span class="scenario-tag ${tagCls}">${tag}</span>
+            <span class="scenario-tag ${tagCls}">${label}</span>
           </div>
           <div class="scenario-model">${modelLabel(model)}${hiddenId}</div>
           <div class="scenario-detail">
@@ -458,20 +292,23 @@
             ${discBadge}
           </div>
           ${reasonHtml}
-          <div class="scenario-billing">${billingHtml}</div>
+          <div class="scenario-billing">
+            ${creditPill(cr)}
+            <div class="scenario-budget">${inclR.toLocaleString()} included${budgetPart} reqs</div>
+          </div>
         </div>`;
     }
 
-    // ── Daily driver banner (no discount tip) ────────────────────────────────
+    // ── Daily driver banner ──────────────────────────────────────────────────
+    const m = standardModel;
     const driverBannerHtml = (() => {
-      const m = buildBest;
       if (!m) return '';
       const driverPrice = costPerRequest(m, 0, 0, cfg, discountInfo);
-      const cr       = creditsPerReq(m, cfg, discountInfo) || 1;
-      const inclR    = Math.floor(cfg.premiumRequests / cr);
-      const ondemR   = driverPrice > 0 ? Math.floor(cfg.onDemandBudget / driverPrice) : 0;
-      const priceStr = fmtCost(driverPrice);
-      const ondemPart = ondemR > 0
+      const cr          = creditsPerReq(m, cfg, discountInfo) || 1;
+      const inclR       = Math.floor(cfg.premiumRequests / cr);
+      const ondemR      = driverPrice > 0 ? Math.floor(cfg.onDemandBudget / driverPrice) : 0;
+      const priceStr    = fmtCost(driverPrice);
+      const ondemPart   = ondemR > 0
         ? `<div class="ddb-stat"><span class="ddb-stat-val">+${ondemR.toLocaleString()}</span><span class="ddb-stat-lbl">on-demand reqs</span></div>`
         : '';
       return `
@@ -514,286 +351,38 @@
         ? `<div class="discount-expiry-notice discount-expiry-notice--warning">⚠ Frontier discount expires in ${discountInfo.daysRemaining} day${discountInfo.daysRemaining !== 1 ? 's' : ''} — highlighted models will revert to full price.</div>`
         : '';
 
-    const SCENARIO_DESC = {
-      'Plan':       'Architecture &middot; complex debug &middot; refactor',
-      'Build':      'Features &middot; code review &middot; implement',
-      'Quick Edit': 'Small fixes &middot; explain &middot; rename',
-    };
-
-    const scenarioCards = _selectedScenario === 'Plan'
-      ? `${scenarioCard(planBest, 'Best', planBestReason)}${scenarioCard(planAlt, 'Alternative', planAltReason)}${scenarioCard(planPremium, 'Premium', planPremiumReason)}`
-      : _selectedScenario === 'Build'
-        ? `${scenarioCard(buildBest, 'Best', buildBestReason)}${scenarioCard(buildAlt, 'Alternative', buildAltReason)}${scenarioCard(buildPremium, 'Premium', buildPremiumReason)}`
-        : `${scenarioCard(editBest, 'Best', editBestReason)}${scenarioCard(editAlt, 'Alternative', editAltReason)}${scenarioCard(editPremium, 'Premium', editPremiumReason)}`;
+    const standardReason = standardModel
+      ? `Features &middot; code review &middot; architecture &middot; complex debug`
+      : '';
+    const quickReason = quickModel
+      ? `Small fixes &middot; rename &middot; explain`
+      : '';
 
     const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
-    const buildCr      = buildBest ? (creditsPerReq(buildBest, cfg, discountInfo) || 1) : 1;
-    const buildInclR   = buildBest ? Math.floor(cfg.premiumRequests / buildCr) : 0;
-    const buildOndemR  = buildBestPrice > 0 ? Math.floor(cfg.onDemandBudget / buildBestPrice) : 0;
+    const stdCr         = standardModel ? (creditsPerReq(standardModel, cfg, discountInfo) || 1) : 1;
+    const stdInclR      = standardModel ? Math.floor(cfg.premiumRequests / stdCr) : 0;
+    const stdPrice      = standardModel ? costPerRequest(standardModel, 0, 0, cfg, discountInfo) : cfg.flatRate;
+    const stdOndemR     = stdPrice > 0 ? Math.floor(cfg.onDemandBudget / stdPrice) : 0;
 
     el.innerHTML = `
       ${driverBannerHtml}
       ${expiryNoticeHtml}
-      <div class="scenario-tabs">
-        <button class="scenario-tab${_selectedScenario === 'Plan'       ? ' is-active' : ''}" data-scenario="Plan">Plan</button>
-        <button class="scenario-tab${_selectedScenario === 'Build'      ? ' is-active' : ''}" data-scenario="Build">Build</button>
-        <button class="scenario-tab${_selectedScenario === 'Quick Edit' ? ' is-active' : ''}" data-scenario="Quick Edit">Quick Edit</button>
-      </div>
-      <p class="scenario-desc">${SCENARIO_DESC[_selectedScenario] || ''}</p>
       <div class="scenario-cards">
-        ${scenarioCards}
+        ${scenarioCard(standardModel, 'standard', 'Standard', standardReason)}
+        ${scenarioCard(quickModel,    'quick',    'Quick Edit', quickReason)}
       </div>
       <div class="tldr-budget-line">
         Request pool: <strong>${cfg.premiumRequests.toLocaleString()} included credits</strong>
         ${budgetCredits > 0 ? `+ <strong>${budgetCredits.toLocaleString()} on-demand credits</strong>` : ''}
-        = <strong>${buildOndemR > 0
-          ? `${buildInclR.toLocaleString()} + ${buildOndemR.toLocaleString()} Build-tier requests`
-          : `${buildInclR.toLocaleString()} Build-tier requests (included)`}</strong>
+        = <strong>${stdOndemR > 0
+          ? `${stdInclR.toLocaleString()} + ${stdOndemR.toLocaleString()} requests`
+          : `${stdInclR.toLocaleString()} requests (included)`}</strong>
         at ${fmtCost(cfg.flatRate)}/credit.
-        ${planBest?.isMaxOnly ? `<span class="tldr-warning" style="display:inline;margin-left:0.25rem">Plan Best uses Max Mode — billed per-token from your $${cfg.onDemandBudget.toFixed(0)} budget, not from the credit pool.</span>` : ''}
       </div>
       <div class="pricing-disclaimer">
         Costs are estimates based on your plan configuration above and typical token usage.
         Actual billing may vary — verify on the
         <a href="https://cursor.com/docs/models-and-pricing" target="_blank" rel="noopener noreferrer">official Cursor pricing page</a>.
-      </div>`;
-
-    el.querySelectorAll('.scenario-tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        _selectedScenario = btn.dataset.scenario;
-        renderTldr(models, cfg, discountInfo);
-      });
-    });
-  }
-
-  // ── Render: Request Pool ──────────────────────────────────────────────────
-  function renderRequestPool(models, cfg, discountInfo) {
-    const el = document.getElementById('section-request-pool');
-    if (!el) return;
-
-    const drivers = models.filter(m => m.isDailyDriver);
-    const rpSubtitle = document.getElementById('request-pool-subtitle');
-    if (rpSubtitle) rpSubtitle.textContent = drivers.length
-      ? `${drivers.length} flat-rate models — bills from your credit allowance`
-      : 'Flat-rate models — bills from your credit allowance';
-    if (!drivers.length) { el.innerHTML = '<p class="empty-state">No request-pool models in current data.</p>'; return; }
-
-    const rec = pickBestDriver(models, false, cfg, discountInfo);
-
-    // Group by provider, sort providers alphabetically
-    const provMap = {};
-    for (const m of drivers) {
-      const p = m.provider || 'Other';
-      (provMap[p] = provMap[p] || []).push(m);
-    }
-
-    let rows = '';
-    for (const prov of Object.keys(provMap).sort()) {
-      const group = provMap[prov].slice().sort(cmpTierKey);
-      group.forEach((m, i) => {
-        const isRec  = m === rec;
-        const effPrice = costPerRequest(m, 0, 0, cfg, discountInfo);
-        const cost   = fmtCost(effPrice);
-        const cr     = creditsPerReq(m, cfg) || 1;
-        const inclR  = Math.floor(cfg.premiumRequests / cr);
-        const odmR   = effPrice > 0 ? Math.floor(cfg.onDemandBudget / effPrice) : 0;
-        const nameCell = m.isHidden
-          ? `${modelLabel(m)} <span class="model-id">(${m.name})</span>`
-          : modelLabel(m);
-        rows += `
-          <tr class="${isRec ? 'row-recommended' : ''}">
-            <td class="provider-cell">${i === 0 ? prov : ''}</td>
-            <td class="model-cell">
-              ${isRec ? '<span class="rec-marker">▶</span>' : ''}${nameCell}
-            </td>
-            <td class="cost-cell">${cost}</td>
-            <td>${tierBadge(m.intelligenceTier)}</td>
-            <td class="credits-cell">${creditPill(cr)}<span class="credit-budget">${inclR.toLocaleString()}${odmR > 0 ? ` + ${odmR.toLocaleString()}` : ''} reqs</span></td>
-          </tr>`;
-      });
-    }
-
-    // Free API-pool models
-    const freeApi = models.filter(m => !m.isDailyDriver && !m.isMaxOnly && m.inPrice === 0 && m.outPrice === 0 && m.tier === 'free');
-    if (freeApi.length) {
-      rows += freeApi.map(m => `
-        <tr class="free-preview-row">
-          <td class="provider-cell">${m.provider || ''}</td>
-          <td class="model-cell">${modelLabel(m)}</td>
-          <td class="cost-cell" style="color:var(--warn)">free</td>
-          <td>${tierBadge(m.intelligenceTier)}</td>
-          <td class="credits-cell" style="color:var(--warn)">FREE PREVIEW — pricing may change</td>
-        </tr>`).join('');
-    }
-
-    const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
-    el.innerHTML = `
-      <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem">
-        All models below bill at a flat rate from your request pool at ${fmtCost(cfg.flatRate)}/credit.
-        <strong style="color:var(--text)">&#9679;&#9679; 2-credit</strong> models cost ${fmtCost(cfg.flatRate * 2)}/req and halve your effective budget.
-        Disable <strong style="color:var(--text)">Auto</strong> routing to control credit spend.
-      </p>
-      <div class="table-scroll">
-        <table class="advisor-table">
-          <thead>
-            <tr>
-              <th>Provider</th>
-              <th>Model</th>
-              <th>$/req</th>
-              <th>Tier</th>
-              <th>Credits &amp; Budget</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <div class="section-tip">
-        <strong>Tips:</strong> Disable Auto routing. Avoid Max Mode for credit-pool tasks.
-        ${budgetCredits > 0
-          ? `After ${cfg.premiumRequests.toLocaleString()} included credits, on-demand kicks in at the same rate (${budgetCredits.toLocaleString()} credits @ ${fmtCost(cfg.flatRate)}/req).`
-          : `You have ${cfg.premiumRequests.toLocaleString()} included credits. Set an on-demand budget above to unlock extra requests.`}
-      </div>`;
-  }
-
-  // ── Render: API Pool ──────────────────────────────────────────────────────
-  function renderApiPool(models, cfg, discountInfo) {
-    const el = document.getElementById('section-api-pool');
-    if (!el) return;
-
-    const eligible = models.filter(m => !m.isMaxOnly && m.tier !== 'daily_driver' && m.requestPrice === null && m.inPrice > 0);
-    const apSubtitle = document.getElementById('api-pool-subtitle');
-    if (apSubtitle) apSubtitle.textContent = eligible.length
-      ? `${eligible.length} per-token model${eligible.length !== 1 ? 's' : ''} — bills from your on-demand budget`
-      : 'Per-token models — bills from your on-demand budget';
-    if (!eligible.length) { el.innerHTML = '<p class="empty-state">No API-pool per-token models in current data.</p>'; return; }
-
-    if (eligible.length === 1) {
-      const m       = eligible[0];
-      const heavy   = TASKS.find(t => t.key === 'heavy')   || TASKS[0];
-      const trivial = TASKS.find(t => t.key === 'trivial') || TASKS[TASKS.length - 1];
-      const cHeavy  = costPerRequest(m, heavy.in, heavy.out, cfg, discountInfo);
-      const cTriv   = costPerRequest(m, trivial.in, trivial.out, cfg, discountInfo);
-      const rHeavy  = cHeavy  > 0 ? Math.floor(cfg.onDemandBudget / cHeavy)  : 0;
-      const rTriv   = cTriv   > 0 ? Math.floor(cfg.onDemandBudget / cTriv)   : 0;
-      el.innerHTML = `
-        <div class="api-compact">
-          <div>
-            <div class="api-compact-name">${modelLabel(m)} ${tierBadge(m.intelligenceTier)}</div>
-            <div class="api-compact-detail">
-              ${fmtCost(m.inPrice)} / ${fmtCost(m.outPrice)} per 1M in/out tokens
-            </div>
-          </div>
-          <div>
-            <div class="api-compact-detail">Cost range: <strong>${fmtCost(cTriv)}/trivial</strong> → <strong>${fmtCost(cHeavy)}/complex</strong></div>
-            <div class="api-compact-detail">Requests for $${cfg.onDemandBudget.toFixed(0)}: <strong>${rHeavy.toLocaleString()}–${rTriv.toLocaleString()}</strong></div>
-          </div>
-        </div>`;
-      return;
-    }
-
-    let rows = '';
-    for (const task of TASKS) {
-      const best = bestModelForTask(models, task.preferredTier, task.strategy, task.in, task.out, cfg, discountInfo);
-      if (!best) {
-        rows += `<tr><td>${task.label}</td><td colspan="3" style="color:var(--text-muted)">(none)</td></tr>`;
-        continue;
-      }
-      const cost  = costPerRequest(best, task.in, task.out, cfg, discountInfo);
-      const reqs  = cost > 0 ? Math.floor(cfg.onDemandBudget / cost) : Infinity;
-      const reqsStr = isFinite(reqs) ? reqs.toLocaleString() : 'unlimited';
-      rows += `
-        <tr>
-          <td>${task.label}</td>
-          <td class="model-cell">${modelLabel(best)} ${tierBadge(best.intelligenceTier)}</td>
-          <td class="cost-cell">${fmtCost(cost)}</td>
-          <td class="cost-cell">${reqsStr}</td>
-        </tr>`;
-    }
-
-    el.innerHTML = `
-      <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem">
-        These models bill per-token from your on-demand budget.
-      </p>
-      <div class="table-scroll">
-        <table class="advisor-table">
-          <thead>
-            <tr>
-              <th>Task Type</th>
-              <th>Recommended Model</th>
-              <th>$/req</th>
-              <th>Reqs for $${cfg.onDemandBudget.toFixed(0)}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-  }
-
-  // ── Render: Max Mode ──────────────────────────────────────────────────────
-  function renderMaxMode(models, cfg, discountInfo) {
-    const el = document.getElementById('section-max-mode');
-    if (!el) return;
-
-    const maxModels = models.filter(m => m.isMaxOnly && m.requestPrice === null);
-    const mmSubtitle = document.getElementById('max-mode-subtitle');
-    if (mmSubtitle) mmSubtitle.textContent = maxModels.length
-      ? `${maxModels.length} per-token model${maxModels.length !== 1 ? 's' : ''} — per-token billing, use with care`
-      : 'Per-token, no request credits consumed — use with care';
-    if (!maxModels.length) { el.innerHTML = '<p class="empty-state">No Max Mode models in current data.</p>'; return; }
-
-    const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
-    const light = TASKS.find(t => t.key === 'light') || TASKS[2] || TASKS[0];
-    const surcharge = Math.round((cfg.overhead - 1) * 100);
-
-    const sorted = maxModels.slice().sort((a, b) =>
-      costPerRequest(a, heavy.in, heavy.out, cfg, discountInfo) - costPerRequest(b, heavy.in, heavy.out, cfg, discountInfo)
-    );
-
-    let rows = '';
-    for (const m of sorted) {
-      const cHeavy = costPerRequest(m, heavy.in, heavy.out, cfg, discountInfo);
-      const cLight = costPerRequest(m, light.in, light.out, cfg, discountInfo);
-      const reqs   = cHeavy > 0 ? Math.floor(cfg.onDemandBudget / cHeavy) : Infinity;
-      const reqsStr = isFinite(reqs) ? reqs.toLocaleString() : 'unlimited';
-      const mult   = cfg.flatRate > 0 ? cHeavy / cfg.flatRate : 0;
-      const multClass = mult >= 10 ? 'mult-warn' : mult >= 3 ? 'mult-warn' : 'mult-ok';
-      const nameCell = m.isHidden
-        ? `${modelLabel(m)} <span class="model-id">(${m.name})</span>`
-        : modelLabel(m);
-      rows += `
-        <tr>
-          <td class="model-cell">${nameCell} ${tierBadge(m.intelligenceTier)}</td>
-          <td class="cost-cell">${fmtCost(cHeavy)}</td>
-          <td class="cost-cell">${fmtCost(cLight)}</td>
-          <td class="cost-cell">${reqsStr}</td>
-          <td class="${multClass}">${mult.toFixed(1)}×</td>
-        </tr>`;
-    }
-
-    el.innerHTML = `
-      <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem">
-        Max Mode bills per-token from your $${cfg.onDemandBudget.toFixed(0)} budget
-        (${surcharge}% surcharge on API cost). Does <strong style="color:var(--text)">not</strong>
-        consume request credits — every call deducts directly.
-      </p>
-      <div class="table-scroll">
-        <table class="advisor-table">
-          <thead>
-            <tr>
-              <th>Model</th>
-              <th>$/complex</th>
-              <th>$/light</th>
-              <th>Reqs/$${cfg.onDemandBudget.toFixed(0)}</th>
-              <th>vs driver</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <div class="section-tip">
-        Break-even: a ${fmtCost(cfg.flatRate)} driver is always cheaper per-request.
-        Use Max Mode when you need capability the drivers lack, or when one high-quality
-        response saves multiple round-trips.
       </div>`;
   }
 
