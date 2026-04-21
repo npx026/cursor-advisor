@@ -628,7 +628,59 @@ details.advisor-card[open] > .advisor-card-summary .collapse-chevron {
 }
 
 /* --------------------------------------------------------------------------
-   Quick Guide — Scenario Cards (3 groups × 3 cards = 9 total)
+   Quick Guide — Scenario Tabs
+   -------------------------------------------------------------------------- */
+.scenario-tabs {
+  display: flex;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.scenario-tab {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.scenario-tab:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.scenario-tab.is-active {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+
+html.light-theme .scenario-tab.is-active {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--accent);
+}
+
+.scenario-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+
+/* Scenario cards row (3 cards for the active tab) */
+.scenario-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   Quick Guide — Scenario Cards (3 groups × 3 cards = 9 total, legacy)
    -------------------------------------------------------------------------- */
 .scenario-grid {
   display: grid;
@@ -1036,6 +1088,10 @@ html.light-theme .credit-pill--maxmode {
     grid-template-columns: 1fr 1fr;
   }
 
+  .scenario-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .advisor-card-body {
     padding: 1rem;
   }
@@ -1063,6 +1119,10 @@ html.light-theme .credit-pill--maxmode {
   }
 
   .scenario-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-cards {
     grid-template-columns: 1fr;
   }
 

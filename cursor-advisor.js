@@ -104,6 +104,7 @@
   ]);
 
   let _selectedModelNames = null;
+  let _selectedScenario   = 'Build';
 
   function loadSelectedModels(allModels) {
     const validNames = new Set(allModels.map(m => m.name));
@@ -334,8 +335,13 @@
     const getPrice = m => costPerRequest(m, 0, 0, cfg, discountInfo);
     const minPrice = Math.min(...drivers.map(getPrice));
     const cheapest = drivers.filter(m => getPrice(m) === minPrice);
-    const best = cheapest.reduce((b, m) =>
-      (TIER_RANK[m.intelligenceTier] ?? 9) > (TIER_RANK[b.intelligenceTier] ?? 9) ? m : b, cheapest[0]);
+    const best = cheapest.reduce((b, m) => {
+      const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[b.intelligenceTier] ?? 9;
+      if (tierM !== tierB) return tierM > tierB ? m : b;  // prefer more moderate (faster)
+      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
+      if (provM !== provB) return provM < provB ? m : b;
+      return (m.displayName || m.name).length < (b.displayName || b.name).length ? m : b;
+    }, cheapest[0]);
 
     const rest = drivers.filter(m => m !== best).sort((a, b) => {
       const ca = getPrice(a), cb = getPrice(b);
@@ -348,70 +354,60 @@
     return { best, value, bestVal };
   }
 
-  // ── Render: Quick Guide (9 scenario cards: 3 per scenario) ───────────────
+  // ── Render: Quick Guide (scenario tabs with 3 cards each) ────────────────
   function renderTldr(models, cfg, discountInfo) {
     const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
 
-    const { best: planBest,  value: planBudget,  bestVal: planSmart  } = pickPlanModels(models, cfg, discountInfo);
-    const { best: buildBest, value: buildBudget, bestVal: buildSmart } = pickDriverTriple(models, cfg, discountInfo);
-    const { best: editBest,  value: editBudget,  bestVal: editSmart  } = pickEditTriple(models, cfg, discountInfo);
+    const { best: planBest,  value: planAlt,   bestVal: planPremium  } = pickPlanModels(models, cfg, discountInfo);
+    const { best: buildBest, value: buildAlt,  bestVal: buildPremium } = pickDriverTriple(models, cfg, discountInfo);
+    const { best: editBest,  value: editAlt,   bestVal: editPremium  } = pickEditTriple(models, cfg, discountInfo);
 
-    const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
-    const buildCr     = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
-    const buildInclR  = buildBest ? Math.floor(cfg.premiumRequests / buildCr) : 0;
+    const tierCap = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
+    const crNote  = m => { const c = creditsPerReq(m, cfg) || 1; return c === 1 ? '1 credit' : `${c} credits`; };
     const buildBestPrice = buildBest ? costPerRequest(buildBest, 0, 0, cfg, discountInfo) : cfg.flatRate;
-    const buildOndemR = buildBest ? Math.floor(cfg.onDemandBudget / buildBestPrice) : 0;
-
-    // ── Pick reasons (why this model won each slot) ──────────────────────────
-    const tierCap  = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
-    const crNote   = (m) => { const c = creditsPerReq(m, cfg) || 1; return c === 1 ? '1 credit' : `${c} credits`; };
-    const drvRate  = buildBest ? fmtCost(buildBestPrice) : fmtCost(cfg.flatRate);
+    const drvRate = fmtCost(buildBestPrice);
 
     const planBestReason = planBest ? (planBest.isMaxOnly
       ? `Max Mode — per-token billing, bypasses the credit pool`
       : `Highest flat-rate intelligence`) : '';
-    const planBudgetReason = planBudget ? (planBudget === buildBest
+    const planAltReason = planAlt ? (planAlt === buildBest
       ? `The recommended daily driver — best flat-rate quality at ${drvRate}/req`
-      : `Best flat-rate option — ${tierCap(planBudget.intelligenceTier)} tier at ${crNote(planBudget)}`) : '';
-    const planSmartReason = planSmart ? (() => {
-      const cr = creditsPerReq(planSmart, cfg) || 1;
+      : `Best flat-rate option — ${tierCap(planAlt.intelligenceTier)} tier at ${crNote(planAlt)}`) : '';
+    const planPremiumReason = planPremium ? (() => {
+      const cr = creditsPerReq(planPremium, cfg) || 1;
       const dCr = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
       return cr > dCr
         ? `Frontier flat-rate at ${cr} credits — between daily driver and Max Mode`
-        : `${tierCap(planSmart.intelligenceTier)} flat-rate at ${crNote(planSmart)}`;
+        : `${tierCap(planPremium.intelligenceTier)} flat-rate at ${crNote(planPremium)}`;
     })() : '';
 
-    const buildBestReason = buildBest ? `Recommended daily driver — highest-tier flat-rate model` : '';
-    const buildBudgetReason = buildBudget ? (() => {
-      const budgetPrice = costPerRequest(buildBudget, 0, 0, cfg, discountInfo);
-      const samePrice = budgetPrice === buildBestPrice;
-      return samePrice
-        ? `Same ${drvRate} rate as Best — ${tierCap(buildBudget.intelligenceTier)} tier for lighter tasks`
-        : `Cheapest driver — ${tierCap(buildBudget.intelligenceTier)} tier at ${fmtCost(budgetPrice)}/req`;
+    const buildBestReason   = buildBest ? `Recommended daily driver — highest-tier flat-rate model` : '';
+    const buildAltReason    = buildAlt ? (() => {
+      const p = costPerRequest(buildAlt, 0, 0, cfg, discountInfo);
+      return p === buildBestPrice
+        ? `Same ${drvRate} rate — ${tierCap(buildAlt.intelligenceTier)} tier for lighter tasks`
+        : `Cheapest driver — ${tierCap(buildAlt.intelligenceTier)} tier at ${fmtCost(p)}/req`;
     })() : '';
-    const buildSmartReason = buildSmart
-      ? `${tierCap(buildSmart.intelligenceTier)} tier at ${crNote(buildSmart)} — best quality above the minimum rate`
+    const buildPremiumReason = buildPremium
+      ? `${tierCap(buildPremium.intelligenceTier)} tier at ${crNote(buildPremium)} — best quality above the minimum rate`
       : '';
 
-    const editBestReason = editBest
-      ? `Lightest &amp; fastest — minimum cost for quick tasks`
-      : '';
-    const editBudgetReason = editBudget ? (() => {
-      const editBestPrice  = editBest ? costPerRequest(editBest, 0, 0, cfg, discountInfo) : cfg.flatRate;
-      const editBudgetPrice = costPerRequest(editBudget, 0, 0, cfg, discountInfo);
-      const samePrice = editBudgetPrice === editBestPrice;
-      return samePrice
-        ? `${tierCap(editBudget.intelligenceTier)} quality at the same ${fmtCost(editBudgetPrice)} rate — more capable for same cost`
-        : `Cheapest remaining — ${tierCap(editBudget.intelligenceTier)} tier at ${fmtCost(editBudgetPrice)}/req`;
+    const editBestPrice     = editBest ? costPerRequest(editBest, 0, 0, cfg, discountInfo) : cfg.flatRate;
+    const editBestReason    = editBest ? `Lightest &amp; fastest — minimum cost for quick tasks` : '';
+    const editAltReason     = editAlt ? (() => {
+      const p = costPerRequest(editAlt, 0, 0, cfg, discountInfo);
+      return p === editBestPrice
+        ? `${tierCap(editAlt.intelligenceTier)} quality at the same ${fmtCost(p)} rate — more capable for same cost`
+        : `Cheapest remaining — ${tierCap(editAlt.intelligenceTier)} tier at ${fmtCost(p)}/req`;
     })() : '';
-    const editSmartReason = editSmart
-      ? `${tierCap(editSmart.intelligenceTier)} tier at ${crNote(editSmart)} — when precision matters more than speed`
+    const editPremiumReason  = editPremium
+      ? `${tierCap(editPremium.intelligenceTier)} tier at ${crNote(editPremium)} — when precision matters more than speed`
       : '';
 
-    function scenarioCard(scenario, exampleUses, model, tag, reason) {
+    function scenarioCard(model, tag, reason) {
       if (!model) return '';
-      const isMax  = !!model.isMaxOnly;
-      const price  = isMax
+      const isMax   = !!model.isMaxOnly;
+      const price   = isMax
         ? costPerRequest(model, heavy.in, heavy.out, cfg, discountInfo)
         : costPerRequest(model, 0, 0, cfg, discountInfo);
       const costStr = fmtCost(price) + '/req';
@@ -433,21 +429,16 @@
           <div class="scenario-budget">${inclR.toLocaleString()} included${budgetPart} reqs</div>`;
       }
 
-      const hiddenId    = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
-      const tagCls      = tag === 'Best' ? 'scenario-tag--best' : tag === 'Budget' ? 'scenario-tag--budget' : 'scenario-tag--smart';
-      const examplesHtml = exampleUses ? `<span class="scenario-examples">${exampleUses}</span>` : '';
-      const reasonHtml   = reason      ? `<div class="scenario-reason">${reason}</div>` : '';
-      const discBadge    = (discountInfo.active && isModelDiscounted(model, discountInfo))
+      const hiddenId   = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
+      const tagCls     = tag === 'Best' ? 'scenario-tag--best' : tag === 'Alternative' ? 'scenario-tag--budget' : 'scenario-tag--smart';
+      const reasonHtml = reason ? `<div class="scenario-reason">${reason}</div>` : '';
+      const discBadge  = (discountInfo.active && isModelDiscounted(model, discountInfo))
         ? `<span class="discount-badge discount-badge--card">${cfg.discountPct}% off · ${discountInfo.daysRemaining}d left</span>` : '';
 
       return `
         <div class="scenario-card${discountInfo.active && isModelDiscounted(model, discountInfo) ? ' is-discounted' : ''}">
           <div class="scenario-header">
-            <div class="scenario-header-top">
-              <span class="scenario-label">${scenario}</span>
-              <span class="scenario-tag ${tagCls}">${tag}</span>
-            </div>
-            ${examplesHtml}
+            <span class="scenario-tag ${tagCls}">${tag}</span>
           </div>
           <div class="scenario-model">${modelLabel(model)}${hiddenId}</div>
           <div class="scenario-detail">
@@ -460,35 +451,18 @@
         </div>`;
     }
 
-    // ── Daily driver banner ──────────────────────────────────────────────────
+    // ── Daily driver banner (no discount tip) ────────────────────────────────
     const driverBannerHtml = (() => {
       const m = buildBest;
       if (!m) return '';
-      const cr     = creditsPerReq(m, cfg) || 1;
-      const inclR  = Math.floor(cfg.premiumRequests / cr);
+      const cr       = creditsPerReq(m, cfg) || 1;
+      const inclR    = Math.floor(cfg.premiumRequests / cr);
       const driverPrice = costPerRequest(m, 0, 0, cfg, discountInfo);
-      const ondemR = driverPrice > 0 ? Math.floor(cfg.onDemandBudget / driverPrice) : 0;
+      const ondemR   = driverPrice > 0 ? Math.floor(cfg.onDemandBudget / driverPrice) : 0;
       const priceStr = fmtCost(driverPrice);
       const ondemPart = ondemR > 0
         ? `<div class="ddb-stat"><span class="ddb-stat-val">+${ondemR.toLocaleString()}</span><span class="ddb-stat-lbl">on-demand reqs</span></div>`
         : '';
-
-      // Discount tip: if a discounted frontier Max Mode model is cheaper than the driver for a medium task, mention it
-      const medium = TASKS.find(t => t.key === 'medium') || TASKS[1];
-      const cheaperFrontier = discountInfo.active ? (() => {
-        const frontierMaxModels = models.filter(m2 => m2.isMaxOnly && isModelDiscounted(m2, discountInfo));
-        if (!frontierMaxModels.length) return null;
-        const best = frontierMaxModels.reduce((b, m2) =>
-          costPerRequest(m2, medium.in, medium.out, cfg, discountInfo) <
-          costPerRequest(b, medium.in, medium.out, cfg, discountInfo) ? m2 : b);
-        const bestCost = costPerRequest(best, medium.in, medium.out, cfg, discountInfo);
-        return bestCost < driverPrice ? { model: best, cost: bestCost } : null;
-      })() : null;
-
-      const discountTip = cheaperFrontier
-        ? `<div class="ddb-discount-tip">💡 Once included credits run out, <strong>${modelLabel(cheaperFrontier.model)}</strong> at ${fmtCost(cheaperFrontier.cost)}/medium task costs less than the ${fmtCost(cfg.flatRate)} on-demand driver rate — worth considering for complex tasks.</div>`
-        : '';
-
       return `
         <div class="daily-driver-banner">
           <div class="ddb-top">
@@ -504,7 +478,6 @@
             </div>
           </div>
           <div class="ddb-note">Flat-rate billing from your request pool — best choice for most everyday tasks. Costs draw from included credits first, then on-demand budget.</div>
-          ${discountTip}
         </div>`;
     })();
 
@@ -530,34 +503,34 @@
         ? `<div class="discount-expiry-notice discount-expiry-notice--warning">⚠ Frontier discount expires in ${discountInfo.daysRemaining} day${discountInfo.daysRemaining !== 1 ? 's' : ''} — highlighted models will revert to full price.</div>`
         : '';
 
+    const SCENARIO_DESC = {
+      'Plan':       'Architecture &middot; complex debug &middot; refactor',
+      'Build':      'Features &middot; code review &middot; implement',
+      'Quick Edit': 'Small fixes &middot; explain &middot; rename',
+    };
+
+    const scenarioCards = _selectedScenario === 'Plan'
+      ? `${scenarioCard(planBest, 'Best', planBestReason)}${scenarioCard(planAlt, 'Alternative', planAltReason)}${scenarioCard(planPremium, 'Premium', planPremiumReason)}`
+      : _selectedScenario === 'Build'
+        ? `${scenarioCard(buildBest, 'Best', buildBestReason)}${scenarioCard(buildAlt, 'Alternative', buildAltReason)}${scenarioCard(buildPremium, 'Premium', buildPremiumReason)}`
+        : `${scenarioCard(editBest, 'Best', editBestReason)}${scenarioCard(editAlt, 'Alternative', editAltReason)}${scenarioCard(editPremium, 'Premium', editPremiumReason)}`;
+
+    const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
+    const buildCr      = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
+    const buildInclR   = buildBest ? Math.floor(cfg.premiumRequests / buildCr) : 0;
+    const buildOndemR  = buildBestPrice > 0 ? Math.floor(cfg.onDemandBudget / buildBestPrice) : 0;
+
     el.innerHTML = `
       ${driverBannerHtml}
       ${expiryNoticeHtml}
-      <div class="tldr-legend">
-        <span class="tldr-legend-item" title="Flat-rate billing from your request pool">
-          ${creditPill(1)} Request pool — flat rate · uses included &amp; on-demand credits
-        </span>
-        <span class="tldr-legend-sep">·</span>
-        <span class="tldr-legend-item" title="Per-token billing from your on-demand budget — does not use credit pool">
-          <span class="credit-pill credit-pill--maxmode">Max Mode</span> Per-token · billed from on-demand budget only
-        </span>
+      <div class="scenario-tabs">
+        <button class="scenario-tab${_selectedScenario === 'Plan'       ? ' is-active' : ''}" data-scenario="Plan">Plan</button>
+        <button class="scenario-tab${_selectedScenario === 'Build'      ? ' is-active' : ''}" data-scenario="Build">Build</button>
+        <button class="scenario-tab${_selectedScenario === 'Quick Edit' ? ' is-active' : ''}" data-scenario="Quick Edit">Quick Edit</button>
       </div>
-      <div class="scenario-grid">
-        <div class="scenario-group">
-          ${scenarioCard('Plan', 'Architecture &middot; complex debug &middot; refactor', planBest, 'Best', planBestReason)}
-          ${scenarioCard('Plan', null, planBudget, 'Budget', planBudgetReason)}
-          ${scenarioCard('Plan', null, planSmart, 'Smart', planSmartReason)}
-        </div>
-        <div class="scenario-group">
-          ${scenarioCard('Build', 'Features &middot; code review &middot; implement', buildBest, 'Best', buildBestReason)}
-          ${scenarioCard('Build', null, buildBudget, 'Budget', buildBudgetReason)}
-          ${scenarioCard('Build', null, buildSmart, 'Smart', buildSmartReason)}
-        </div>
-        <div class="scenario-group">
-          ${scenarioCard('Quick Edit', 'Small fixes &middot; explain &middot; rename', editBest, 'Best', editBestReason)}
-          ${scenarioCard('Quick Edit', null, editBudget, 'Budget', editBudgetReason)}
-          ${scenarioCard('Quick Edit', null, editSmart, 'Smart', editSmartReason)}
-        </div>
+      <p class="scenario-desc">${SCENARIO_DESC[_selectedScenario] || ''}</p>
+      <div class="scenario-cards">
+        ${scenarioCards}
       </div>
       <div class="tldr-budget-line">
         Request pool: <strong>${cfg.premiumRequests.toLocaleString()} included credits</strong>
@@ -573,6 +546,13 @@
         Actual billing may vary — verify on the
         <a href="https://cursor.com/docs/models-and-pricing" target="_blank" rel="noopener noreferrer">official Cursor pricing page</a>.
       </div>`;
+
+    el.querySelectorAll('.scenario-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _selectedScenario = btn.dataset.scenario;
+        renderTldr(models, cfg, discountInfo);
+      });
+    });
   }
 
   // ── Render: Request Pool ──────────────────────────────────────────────────
