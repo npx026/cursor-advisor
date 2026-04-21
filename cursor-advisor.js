@@ -113,7 +113,16 @@
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const valid = parsed.filter(n => validNames.has(n));
-          if (valid.length > 0) { _selectedModelNames = new Set(valid); return; }
+          if (valid.length > 0) {
+            const merged = new Set(valid);
+            // Auto-add any new default models not previously known (not in the raw save at all)
+            const parsedSet = new Set(parsed);
+            for (const name of DEFAULT_SELECTED_MODELS) {
+              if (validNames.has(name) && !parsedSet.has(name)) merged.add(name);
+            }
+            _selectedModelNames = merged;
+            return;
+          }
         }
       }
     } catch (_) {}
@@ -423,9 +432,11 @@
       const tagCls      = tag === 'Best' ? 'scenario-tag--best' : tag === 'Budget' ? 'scenario-tag--budget' : 'scenario-tag--smart';
       const examplesHtml = exampleUses ? `<span class="scenario-examples">${exampleUses}</span>` : '';
       const reasonHtml   = reason      ? `<div class="scenario-reason">${reason}</div>` : '';
+      const discBadge    = (discountInfo.active && isModelDiscounted(model, discountInfo))
+        ? `<span class="discount-badge discount-badge--card">${cfg.discountPct}% off · ${discountInfo.daysRemaining}d left</span>` : '';
 
       return `
-        <div class="scenario-card">
+        <div class="scenario-card${discountInfo.active && isModelDiscounted(model, discountInfo) ? ' is-discounted' : ''}">
           <div class="scenario-header">
             <div class="scenario-header-top">
               <span class="scenario-label">${scenario}</span>
@@ -437,6 +448,7 @@
           <div class="scenario-detail">
             <strong>${costStr}</strong>
             ${tierBadge(model.intelligenceTier)}
+            ${discBadge}
           </div>
           ${reasonHtml}
           <div class="scenario-billing">${billingHtml}</div>
@@ -493,8 +505,29 @@
 
     const el = document.getElementById('section-tldr');
     if (!el) return;
+
+    // Update quick-guide collapsible subtitle
+    const qgSubtitle = document.getElementById('quick-guide-subtitle');
+    if (qgSubtitle) {
+      if (discountInfo.active) {
+        qgSubtitle.textContent = `${cfg.discountPct}% off frontier models · ${discountInfo.daysRemaining} day${discountInfo.daysRemaining !== 1 ? 's' : ''} remaining`;
+      } else if (discountInfo.expired) {
+        qgSubtitle.textContent = 'Discount expired — prices shown at full rate';
+      } else {
+        qgSubtitle.textContent = 'Best pick for each scenario';
+      }
+    }
+
+    // Discount expiry notice
+    const expiryNoticeHtml = discountInfo.expired
+      ? `<div class="discount-expiry-notice">Your ${cfg.discountPct}% frontier discount has expired. Prices are now at full rate.</div>`
+      : (discountInfo.active && discountInfo.daysRemaining <= 7)
+        ? `<div class="discount-expiry-notice discount-expiry-notice--warning">⚠ Frontier discount expires in ${discountInfo.daysRemaining} day${discountInfo.daysRemaining !== 1 ? 's' : ''} — highlighted models will revert to full price.</div>`
+        : '';
+
     el.innerHTML = `
       ${driverBannerHtml}
+      ${expiryNoticeHtml}
       <div class="tldr-legend">
         <span class="tldr-legend-item" title="Flat-rate billing from your request pool">
           ${creditPill(1)} Request pool — flat rate · uses included &amp; on-demand credits

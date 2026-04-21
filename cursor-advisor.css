@@ -1321,6 +1321,34 @@ html.light-theme .credit-pill--maxmode {
   color: var(--warn);
 }
 
+/* Discount badge variant for scenario cards */
+.discount-badge--card {
+  font-size: 0.6rem;
+  padding: 0.08rem 0.35rem;
+  vertical-align: middle;
+}
+
+/* Subtle left border on discounted scenario cards */
+.scenario-card.is-discounted {
+  border-left: 3px solid var(--warn);
+}
+
+/* Discount expiry notice in Quick Guide */
+.discount-expiry-notice {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.discount-expiry-notice--warning {
+  background: var(--warn-glow);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--warn);
+}
+
 @media (max-width: 480px) {
   .model-sel-toolbar {
     flex-direction: column;
