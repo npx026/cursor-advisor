@@ -269,7 +269,7 @@
       if (tierM !== tierB) return tierM < tierB ? m : b;
       const premM = m.isMaxOnly ? 0 : 1;
       const premB = b.isMaxOnly ? 0 : 1;
-      if (premM !== premB) return premM < premB ? m : b;
+      if (premM !== premB) return premM > premB ? m : b;
       const costM = costPerRequest(m, heavy.in, heavy.out, cfg, discountInfo);
       const costB = costPerRequest(b, heavy.in, heavy.out, cfg, discountInfo);
       return (m.isMaxOnly ? costM > costB : costM < costB) ? m : b;
@@ -469,7 +469,7 @@
       })() : null;
 
       const discountTip = cheaperFrontier
-        ? `<div class="ddb-discount-tip">💡 With your ${cfg.discountPct}% discount, <strong>${modelLabel(cheaperFrontier.model)}</strong> costs ${fmtCost(cheaperFrontier.cost)}/medium task — cheaper than this driver from your on-demand budget.</div>`
+        ? `<div class="ddb-discount-tip">💡 Once included credits run out, <strong>${modelLabel(cheaperFrontier.model)}</strong> at ${fmtCost(cheaperFrontier.cost)}/medium task costs less than the ${fmtCost(cfg.flatRate)} on-demand driver rate — worth considering for complex tasks.</div>`
         : '';
 
       return `
@@ -538,6 +538,10 @@
     if (!el) return;
 
     const drivers = models.filter(m => m.isDailyDriver);
+    const rpSubtitle = document.getElementById('request-pool-subtitle');
+    if (rpSubtitle) rpSubtitle.textContent = drivers.length
+      ? `${drivers.length} flat-rate models — bills from your credit allowance`
+      : 'Flat-rate models — bills from your credit allowance';
     if (!drivers.length) { el.innerHTML = '<p class="empty-state">No request-pool models in current data.</p>'; return; }
 
     const rec = pickBestDriver(models, false, cfg, discountInfo);
@@ -623,6 +627,10 @@
     if (!el) return;
 
     const eligible = models.filter(m => !m.isMaxOnly && m.tier !== 'daily_driver' && m.requestPrice === null && m.inPrice > 0);
+    const apSubtitle = document.getElementById('api-pool-subtitle');
+    if (apSubtitle) apSubtitle.textContent = eligible.length
+      ? `${eligible.length} per-token model${eligible.length !== 1 ? 's' : ''} — bills from your on-demand budget`
+      : 'Per-token models — bills from your on-demand budget';
     if (!eligible.length) { el.innerHTML = '<p class="empty-state">No API-pool per-token models in current data.</p>'; return; }
 
     if (eligible.length === 1) {
@@ -693,6 +701,10 @@
     if (!el) return;
 
     const maxModels = models.filter(m => m.isMaxOnly && m.requestPrice === null);
+    const mmSubtitle = document.getElementById('max-mode-subtitle');
+    if (mmSubtitle) mmSubtitle.textContent = maxModels.length
+      ? `${maxModels.length} per-token model${maxModels.length !== 1 ? 's' : ''} — per-token billing, use with care`
+      : 'Per-token, no request credits consumed — use with care';
     if (!maxModels.length) { el.innerHTML = '<p class="empty-state">No Max Mode models in current data.</p>'; return; }
 
     const heavy = TASKS.find(t => t.key === 'heavy') || TASKS[0];
