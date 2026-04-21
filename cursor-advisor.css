@@ -258,7 +258,7 @@ main {
 
 .config-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
@@ -1030,10 +1030,6 @@ html.light-theme .credit-pill--maxmode {
    Responsive
    -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
-  .config-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .tldr-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1331,15 +1327,15 @@ html.light-theme .credit-pill--maxmode {
   color: var(--warn);
 }
 
-/* Disclaimer below Quick Guide */
+/* Disclaimer below Recommendations */
 .pricing-disclaimer {
   margin-top: 1.25rem;
-  padding: 0.75rem 1rem;
-  background: var(--surface);
+  padding: 0.875rem 1.125rem;
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 0.78rem;
-  color: var(--text-subtle);
+  font-size: 0.8rem;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 .pricing-disclaimer a {

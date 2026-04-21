@@ -373,7 +373,7 @@
       ${driverBannerHtml}
       ${expiryNoticeHtml}
       <div class="scenario-cards">
-        ${scenarioCard(standardModel, 'standard', 'Standard', standardReason)}
+        ${scenarioCard(standardModel, 'standard', 'General', standardReason)}
         ${scenarioCard(quickModel,    'quick',    'Quick Edit', quickReason)}
       </div>
       <div class="tldr-budget-line">
