@@ -187,7 +187,11 @@
   // ── Core Calculations ─────────────────────────────────────────────────────
   function costPerRequest(model, inTok, outTok, cfg, discountInfo) {
     const multiplier = (discountInfo && isModelDiscounted(model, discountInfo)) ? discountInfo.multiplier : 1;
-    if (model.requestPrice !== null) return model.requestPrice * multiplier;
+    if (model.requestPrice !== null) {
+      // Request-pool billing is discrete credits; floor at 1 credit so a 50% discount
+      // on a 1-credit model doesn't produce an impossible half-credit price.
+      return Math.max(model.requestPrice * multiplier, cfg.flatRate);
+    }
     return ((inTok / 1_000_000) * model.inPrice +
             (outTok / 1_000_000) * model.outPrice) * cfg.overhead * multiplier;
   }
