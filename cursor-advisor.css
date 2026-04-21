@@ -1321,6 +1321,25 @@ html.light-theme .credit-pill--maxmode {
   color: var(--warn);
 }
 
+/* Disclaimer below Quick Guide */
+.pricing-disclaimer {
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+  line-height: 1.5;
+}
+.pricing-disclaimer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.pricing-disclaimer a:hover {
+  text-decoration: underline;
+}
+
 /* Discount badge variant for scenario cards */
 .discount-badge--card {
   font-size: 0.6rem;

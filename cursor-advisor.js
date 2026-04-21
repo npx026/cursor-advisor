@@ -281,7 +281,12 @@
       if (premM !== premB) return premM > premB ? m : b;
       const costM = costPerRequest(m, heavy.in, heavy.out, cfg, discountInfo);
       const costB = costPerRequest(b, heavy.in, heavy.out, cfg, discountInfo);
-      return (m.isMaxOnly ? costM > costB : costM < costB) ? m : b;
+      if (m.isMaxOnly) return costM > costB ? m : b;
+      if (costM !== costB) return costM < costB ? m : b;
+      // Equal cost: prefer by provider rank then shorter display name (base model wins)
+      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[b.provider] ?? 9;
+      if (provM !== provB) return provM < provB ? m : b;
+      return (m.displayName || m.name).length < (b.displayName || b.name).length ? m : b;
     });
 
     const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
@@ -562,6 +567,11 @@
           : `${buildInclR.toLocaleString()} Build-tier requests (included)`}</strong>
         at ${fmtCost(cfg.flatRate)}/credit.
         ${planBest?.isMaxOnly ? `<span class="tldr-warning" style="display:inline;margin-left:0.25rem">Plan Best uses Max Mode — billed per-token from your $${cfg.onDemandBudget.toFixed(0)} budget, not from the credit pool.</span>` : ''}
+      </div>
+      <div class="pricing-disclaimer">
+        Costs are estimates based on your plan configuration above and typical token usage.
+        Actual billing may vary — verify on the
+        <a href="https://cursor.com/docs/models-and-pricing" target="_blank" rel="noopener noreferrer">official Cursor pricing page</a>.
       </div>`;
   }
 
@@ -962,9 +972,6 @@
     renderSubtitle(cfg, discountInfo);
     renderDiscountStatus(cfg, discountInfo);
     renderTldr(models, cfg, discountInfo);
-    renderRequestPool(models, cfg, discountInfo);
-    renderApiPool(models, cfg, discountInfo);
-    renderMaxMode(models, cfg, discountInfo);
   }
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
