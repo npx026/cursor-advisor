@@ -285,9 +285,9 @@
       const tierM = TIER_RANK[m.intelligenceTier] ?? 9;
       const tierB = TIER_RANK[b.intelligenceTier] ?? 9;
       if (tierM !== tierB) return tierM < tierB ? m : b;
-      const premM = m.isMaxOnly ? 0 : 1;
-      const premB = b.isMaxOnly ? 0 : 1;
-      if (premM !== premB) return premM > premB ? m : b;
+      const premM = m.isMaxOnly ? 0 : (m.requestPrice !== null ? 2 : 1);
+      const premB = b.isMaxOnly ? 0 : (b.requestPrice !== null ? 2 : 1);
+      if (premM !== premB) return premM > premB ? m : b;  // request-pool > api-pool > max-mode
       const costM = costPerRequest(m, heavy.in, heavy.out, cfg, discountInfo);
       const costB = costPerRequest(b, heavy.in, heavy.out, cfg, discountInfo);
       if (m.isMaxOnly) return costM > costB ? m : b;
@@ -354,7 +354,9 @@
     const rest = drivers.filter(m => m !== best).sort((a, b) => {
       const ca = getPrice(a), cb = getPrice(b);
       if (ca !== cb) return ca - cb;
-      return (TIER_RANK[b.intelligenceTier] ?? 9) - (TIER_RANK[a.intelligenceTier] ?? 9);
+      const tr = (TIER_RANK[b.intelligenceTier] ?? 9) - (TIER_RANK[a.intelligenceTier] ?? 9);
+      if (tr !== 0) return tr;
+      return (PROVIDER_RANK[a.provider] ?? 9) - (PROVIDER_RANK[b.provider] ?? 9);
     });
     const value   = rest[0] || null;
     const bestVal = rest.filter(m => m !== value)[0] || null;
