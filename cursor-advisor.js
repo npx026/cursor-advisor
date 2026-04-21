@@ -48,7 +48,7 @@
     { name: 'claude-4-sonnet',           displayName: 'Claude 4 Sonnet',            tier: 'daily_driver', inPrice: 3.0,  outPrice: 15.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
     { name: 'claude-4-5-haiku',         displayName: 'Claude 4.5 Haiku',           tier: 'daily_driver', inPrice: 1.0,  outPrice: 5.0,   requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'moderate', provider: 'Anthropic' },
     { name: 'claude-4-sonnet-1m',       displayName: 'Claude 4 Sonnet 1M',         tier: 'daily_driver', inPrice: 6.0,  outPrice: 22.5,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Anthropic' },
-    { name: 'claude-opus-4-7-thinking-high', displayName: 'Claude 4.7 Opus Thinking', tier: 'daily_driver', inPrice: 5.0, outPrice: 25.0, requestPrice: 0.04, isDailyDriver: true, isMaxOnly: false, isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
+    { name: 'claude-opus-4-7-thinking-high', displayName: 'Claude 4.7 Opus Thinking', tier: 'daily_driver', inPrice: 5.0, outPrice: 25.0, requestPrice: 0.08, isDailyDriver: true, isMaxOnly: false, isHidden: true,  intelligenceTier: 'frontier', provider: 'Anthropic' },
     { name: 'gemini-3.1-pro',           displayName: 'Gemini 3.1 Pro',             tier: 'daily_driver', inPrice: 2.0,  outPrice: 12.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: false, intelligenceTier: 'frontier', provider: 'Google' },
     { name: 'gemini-3-pro',             displayName: 'Gemini 3 Pro',               tier: 'daily_driver', inPrice: 2.0,  outPrice: 12.0,  requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'high',     provider: 'Google' },
     { name: 'gemini-3-flash',           displayName: 'Gemini 3 Flash',             tier: 'daily_driver', inPrice: 0.5,  outPrice: 3.0,   requestPrice: 0.04, isDailyDriver: true,  isMaxOnly: false, isHidden: true,  intelligenceTier: 'moderate', provider: 'Google' },
@@ -251,9 +251,12 @@
   }
 
   // ── Credit helpers ─────────────────────────────────────────────────────────
-  function creditsPerReq(model, cfg) {
+  function creditsPerReq(model, cfg, discountInfo) {
     if (model.requestPrice === null) return null;
-    return Math.round((model.requestPrice ?? cfg.flatRate) / cfg.flatRate);
+    const effectivePrice = discountInfo
+      ? costPerRequest(model, 0, 0, cfg, discountInfo)
+      : (model.requestPrice ?? cfg.flatRate);
+    return Math.round(effectivePrice / cfg.flatRate);
   }
 
   function creditPill(credits) {
@@ -363,7 +366,7 @@
     const { best: editBest,  value: editAlt,   bestVal: editPremium  } = pickEditTriple(models, cfg, discountInfo);
 
     const tierCap = t => t ? (t[0].toUpperCase() + t.slice(1)) : '';
-    const crNote  = m => { const c = creditsPerReq(m, cfg) || 1; return c === 1 ? '1 credit' : `${c} credits`; };
+    const crNote  = m => { const c = creditsPerReq(m, cfg, discountInfo) || 1; return c === 1 ? '1 credit' : `${c} credits`; };
     const buildBestPrice = buildBest ? costPerRequest(buildBest, 0, 0, cfg, discountInfo) : cfg.flatRate;
     const drvRate = fmtCost(buildBestPrice);
 
@@ -374,8 +377,8 @@
       ? `The recommended daily driver — best flat-rate quality at ${drvRate}/req`
       : `Best flat-rate option — ${tierCap(planAlt.intelligenceTier)} tier at ${crNote(planAlt)}`) : '';
     const planPremiumReason = planPremium ? (() => {
-      const cr = creditsPerReq(planPremium, cfg) || 1;
-      const dCr = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
+      const cr = creditsPerReq(planPremium, cfg, discountInfo) || 1;
+      const dCr = buildBest ? (creditsPerReq(buildBest, cfg, discountInfo) || 1) : 1;
       return cr > dCr
         ? `Frontier flat-rate at ${cr} credits — between daily driver and Max Mode`
         : `${tierCap(planPremium.intelligenceTier)} flat-rate at ${crNote(planPremium)}`;
@@ -420,9 +423,10 @@
           <span class="credit-pill credit-pill--maxmode">Max Mode &middot; per-token</span>
           <div class="scenario-budget">~${reqs.toLocaleString()} reqs for $${cfg.onDemandBudget.toFixed(0)} &middot; ${mult}&times; vs driver</div>`;
       } else {
-        const cr     = creditsPerReq(model, cfg) || 1;
-        const inclR  = Math.floor(cfg.premiumRequests / cr);
-        const ondemR = Math.floor(cfg.onDemandBudget / (model.requestPrice ?? cfg.flatRate));
+        const cr      = creditsPerReq(model, cfg, discountInfo) || 1;
+        const inclR   = Math.floor(cfg.premiumRequests / cr);
+        const effPrice = price; // already computed above using costPerRequest (discounted)
+        const ondemR  = effPrice > 0 ? Math.floor(cfg.onDemandBudget / effPrice) : 0;
         const budgetPart = ondemR > 0 ? ` + ${ondemR.toLocaleString()} on-demand` : '';
         billingHtml = `
           ${creditPill(cr)}
@@ -455,9 +459,9 @@
     const driverBannerHtml = (() => {
       const m = buildBest;
       if (!m) return '';
-      const cr       = creditsPerReq(m, cfg) || 1;
-      const inclR    = Math.floor(cfg.premiumRequests / cr);
       const driverPrice = costPerRequest(m, 0, 0, cfg, discountInfo);
+      const cr       = creditsPerReq(m, cfg, discountInfo) || 1;
+      const inclR    = Math.floor(cfg.premiumRequests / cr);
       const ondemR   = driverPrice > 0 ? Math.floor(cfg.onDemandBudget / driverPrice) : 0;
       const priceStr = fmtCost(driverPrice);
       const ondemPart = ondemR > 0
@@ -516,7 +520,7 @@
         : `${scenarioCard(editBest, 'Best', editBestReason)}${scenarioCard(editAlt, 'Alternative', editAltReason)}${scenarioCard(editPremium, 'Premium', editPremiumReason)}`;
 
     const budgetCredits = Math.floor(cfg.onDemandBudget / cfg.flatRate);
-    const buildCr      = buildBest ? (creditsPerReq(buildBest, cfg) || 1) : 1;
+    const buildCr      = buildBest ? (creditsPerReq(buildBest, cfg, discountInfo) || 1) : 1;
     const buildInclR   = buildBest ? Math.floor(cfg.premiumRequests / buildCr) : 0;
     const buildOndemR  = buildBestPrice > 0 ? Math.floor(cfg.onDemandBudget / buildBestPrice) : 0;
 

@@ -456,7 +456,7 @@
       "tier": "daily_driver",
       "inPrice": 5.0,
       "outPrice": 25.0,
-      "requestPrice": 0.04,
+      "requestPrice": 0.08,
       "isMaxOnly": false,
       "isDailyDriver": true,
       "isFreePreview": false,

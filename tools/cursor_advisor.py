@@ -164,12 +164,12 @@ COMPANY_MODELS: List[ModelRecord] = [
         tier="daily_driver",
         in_price=5.0,
         out_price=25.0,
-        request_price=0.04,
+        request_price=0.08,
         is_daily_driver=True,
         is_hidden=True,
         intelligence_tier="frontier",
         provider="Anthropic",
-        notes="Company exception: available as request-pool model (not Max Mode only)",
+        notes="Company exception: available as request-pool model (not Max Mode only). Base price 2 credits; 50% company discount brings it to 1 credit effective.",
     ),
 ]
 
