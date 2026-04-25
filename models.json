@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-24",
+  "date": "2026-04-25",
   "source": "live",
   "models": [
     {
@@ -283,6 +283,20 @@
       "provider": "OpenAI"
     },
     {
+      "name": "gpt-5.5",
+      "displayName": "GPT-5.5",
+      "tier": "premium",
+      "inPrice": 5.0,
+      "outPrice": 30.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isFreePreview": false,
+      "isHidden": false,
+      "intelligenceTier": "frontier",
+      "provider": "OpenAI"
+    },
+    {
       "name": "gpt-5.4",
       "displayName": "GPT-5.4",
       "tier": "premium",
@@ -292,7 +306,7 @@
       "isMaxOnly": true,
       "isDailyDriver": false,
       "isFreePreview": false,
-      "isHidden": false,
+      "isHidden": true,
       "intelligenceTier": "frontier",
       "provider": "OpenAI"
     },
