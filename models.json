@@ -1,5 +1,5 @@
 {
-  "date": "2026-05-06",
+  "date": "2026-05-07",
   "source": "live",
   "models": [
     {
@@ -395,6 +395,20 @@
       "provider": "OpenAI"
     },
     {
+      "name": "grok-4-3",
+      "displayName": "Grok 4.3",
+      "tier": "premium",
+      "inPrice": 1.25,
+      "outPrice": 2.5,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isFreePreview": false,
+      "isHidden": false,
+      "intelligenceTier": "high",
+      "provider": "xAI"
+    },
+    {
       "name": "grok-4-20",
       "displayName": "Grok 4.20",
       "tier": "daily_driver",
@@ -404,7 +418,7 @@
       "isMaxOnly": false,
       "isDailyDriver": true,
       "isFreePreview": false,
-      "isHidden": false,
+      "isHidden": true,
       "intelligenceTier": "high",
       "provider": "xAI"
     },
