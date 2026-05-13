@@ -1,5 +1,5 @@
 {
-  "date": "2026-05-12",
+  "date": "2026-05-13",
   "source": "live",
   "models": [
     {
@@ -55,6 +55,20 @@
       "isDailyDriver": false,
       "isFreePreview": false,
       "isHidden": false,
+      "intelligenceTier": "frontier",
+      "provider": "Anthropic"
+    },
+    {
+      "name": "claude-opus-4-7-fast",
+      "displayName": "Claude Opus 4.7 (fast mode)",
+      "tier": "premium",
+      "inPrice": 30.0,
+      "outPrice": 150.0,
+      "requestPrice": null,
+      "isMaxOnly": true,
+      "isDailyDriver": false,
+      "isFreePreview": false,
+      "isHidden": true,
       "intelligenceTier": "frontier",
       "provider": "Anthropic"
     },
