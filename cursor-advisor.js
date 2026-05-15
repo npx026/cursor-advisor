@@ -212,6 +212,18 @@
     }, candidates[0]);
   }
 
+  function pickBestOverall(models, filterFn) {
+    const candidates = models.filter(m => !m.isHidden && (!filterFn || filterFn(m)));
+    if (!candidates.length) return null;
+    return candidates.reduce((best, m) => {
+      const tierM = TIER_RANK[m.intelligenceTier] ?? 9, tierB = TIER_RANK[best.intelligenceTier] ?? 9;
+      if (tierM !== tierB) return tierM < tierB ? m : best;
+      const provM = PROVIDER_RANK[m.provider] ?? 9, provB = PROVIDER_RANK[best.provider] ?? 9;
+      if (provM !== provB) return provM < provB ? m : best;
+      return (m.displayName || m.name).length < (best.displayName || best.name).length ? m : best;
+    }, candidates[0]);
+  }
+
   // ── Formatting helpers ────────────────────────────────────────────────────
   function modelLabel(m) { return m.displayName || m.name; }
 
@@ -253,6 +265,9 @@
   function renderTldr(models, cfg, discountInfo) {
     // Standard: best frontier request-pool driver (tier → cost → provider)
     const standardModel  = pickBestDriver(models, false, cfg, discountInfo);
+    // Best by capability only (no cost weighting), split by billing mode
+    const bestPool = pickBestOverall(models, m => m.requestPrice !== null);
+    const bestMax  = pickBestOverall(models, m => m.requestPrice === null);
 
     // Quick Edit: cheapest driver, preferring most-moderate tier then provider
     const drivers = models.filter(m => m.isDailyDriver && !m.isHidden);
@@ -299,6 +314,49 @@
             ${creditPill(cr)}
             <div class="scenario-budget">${inclR.toLocaleString()} included${budgetPart} reqs</div>
           </div>
+        </div>`;
+    }
+
+    function bestModelCard(model, tagCls, label) {
+      const isMaxMode = model.requestPrice === null;
+      const hiddenId  = model.isHidden ? ` <span class="model-id">${model.name}</span>` : '';
+      const discBadge = (discountInfo.active && isModelDiscounted(model, discountInfo))
+        ? `<span class="discount-badge discount-badge--card">${cfg.discountPct}% off · ${discountInfo.daysRemaining}d left</span>` : '';
+      const mult = (discountInfo && isModelDiscounted(model, discountInfo)) ? discountInfo.multiplier : 1;
+      let costStr, billingHtml;
+      if (isMaxMode) {
+        const inP  = model.inPrice  * mult;
+        const outP = model.outPrice * mult;
+        costStr     = `$${inP.toFixed(2)}/$${outP.toFixed(2)} per 1M tok`;
+        billingHtml = `
+          <div class="scenario-billing">
+            <span class="credit-pill credit-pill--maxmode">Max Mode</span>
+            <div class="scenario-budget">per-token &middot; not from request pool</div>
+          </div>`;
+      } else {
+        const price = costPerRequest(model, 0, 0, cfg, discountInfo);
+        const cr    = creditsPerReq(model, cfg, discountInfo) || 1;
+        const inclR = Math.floor(cfg.premiumRequests / cr);
+        costStr     = fmtCost(price) + '/req';
+        billingHtml = `
+          <div class="scenario-billing">
+            ${creditPill(cr)}
+            <div class="scenario-budget">${inclR.toLocaleString()} included reqs</div>
+          </div>`;
+      }
+      return `
+        <div class="scenario-card${discountInfo.active && isModelDiscounted(model, discountInfo) ? ' is-discounted' : ''}">
+          <div class="scenario-header">
+            <span class="scenario-tag ${tagCls}">${label}</span>
+          </div>
+          <div class="scenario-model">${modelLabel(model)}${hiddenId}</div>
+          <div class="scenario-detail">
+            <strong>${costStr}</strong>
+            ${tierBadge(model.intelligenceTier)}
+            ${discBadge}
+          </div>
+          <div class="scenario-reason">Highest capability &middot; hard problems &middot; architecture &middot; deep reasoning</div>
+          ${billingHtml}
         </div>`;
     }
 
@@ -375,6 +433,8 @@
       <div class="scenario-cards">
         ${scenarioCard(standardModel, 'standard', 'General', standardReason)}
         ${scenarioCard(quickModel,    'quick',    'Quick Edit', quickReason)}
+        ${bestPool ? bestModelCard(bestPool, 'scenario-tag--best', 'Best (pool)') : ''}
+        ${bestMax  ? bestModelCard(bestMax,  'scenario-tag--smart', 'Best (Max)') : ''}
       </div>
       <div class="tldr-budget-line">
         Request pool: <strong>${cfg.premiumRequests.toLocaleString()} included credits</strong>

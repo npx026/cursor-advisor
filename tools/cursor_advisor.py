@@ -111,7 +111,7 @@ def label(m: ModelRecord) -> str:
 
 
 # ── FALLBACK_START ────────────────────────────────────────────
-FALLBACK_DATE = "2026-04-20"
+FALLBACK_DATE = "2026-05-15"
 
 FALLBACK_MODELS: List[ModelRecord] = [
     # ── Daily drivers (request-pool, req>=1) ───────────────────
@@ -135,7 +135,7 @@ FALLBACK_MODELS: List[ModelRecord] = [
     ModelRecord("gpt-5.1-codex", display_name="GPT-5.1 Codex", tier="daily_driver", in_price=1.25, out_price=10.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="OpenAI"),
     ModelRecord("gpt-5.1-codex-mini", display_name="GPT-5.1 Codex Mini", tier="daily_driver", in_price=0.25, out_price=2.0, request_price=0.04, is_daily_driver=True, is_hidden=True, provider="OpenAI"),
     ModelRecord("gpt-5.1-codex-max", display_name="GPT-5.1 Codex Max", tier="daily_driver", in_price=1.25, out_price=10.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="OpenAI"),
-    ModelRecord("grok-4-20", display_name="Grok 4.20", tier="daily_driver", in_price=2.0, out_price=6.0, request_price=0.04, is_daily_driver=True, intelligence_tier="high", provider="xAI"),
+    ModelRecord("grok-4-20", display_name="Grok 4.20", tier="daily_driver", in_price=2.0, out_price=6.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="xAI"),
     ModelRecord("kimi-k2.5", display_name="Kimi K2.5", tier="daily_driver", in_price=0.6, out_price=3.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Moonshot"),
     ModelRecord("composer-1", display_name="Composer 1", tier="daily_driver", in_price=1.25, out_price=10.0, request_price=0.04, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Cursor"),
     ModelRecord("composer-1.5", display_name="Composer 1.5", tier="daily_driver", in_price=3.5, out_price=17.5, request_price=0.08, is_daily_driver=True, is_hidden=True, intelligence_tier="high", provider="Cursor"),
@@ -144,10 +144,13 @@ FALLBACK_MODELS: List[ModelRecord] = [
     ModelRecord("claude-4-6-sonnet", display_name="Claude 4.6 Sonnet", tier="premium", in_price=3.0, out_price=15.0, is_max_only=True, intelligence_tier="high", provider="Anthropic"),
     ModelRecord("claude-4-5-sonnet", display_name="Claude 4.5 Sonnet", tier="premium", in_price=3.0, out_price=15.0, is_max_only=True, is_hidden=True, intelligence_tier="high", provider="Anthropic"),
     ModelRecord("claude-opus-4-7", display_name="Claude 4.7 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, intelligence_tier="frontier", provider="Anthropic"),
+    ModelRecord("claude-opus-4-7-fast", display_name="Claude Opus 4.7 (fast mode)", tier="premium", in_price=30.0, out_price=150.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
     ModelRecord("claude-4-6-opus", display_name="Claude 4.6 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
     ModelRecord("claude-4-5-opus", display_name="Claude 4.5 Opus", tier="premium", in_price=5.0, out_price=25.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
     ModelRecord("claude-4-6-opus-fast", display_name="Claude 4.6 Opus (Fast mode)", tier="premium", in_price=30.0, out_price=150.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="Anthropic"),
-    ModelRecord("gpt-5.4", display_name="GPT-5.4", tier="premium", in_price=2.5, out_price=15.0, is_max_only=True, intelligence_tier="frontier", provider="OpenAI"),
+    ModelRecord("gpt-5.5", display_name="GPT-5.5", tier="premium", in_price=5.0, out_price=30.0, is_max_only=True, intelligence_tier="frontier", provider="OpenAI"),
+    ModelRecord("gpt-5.4", display_name="GPT-5.4", tier="premium", in_price=2.5, out_price=15.0, is_max_only=True, is_hidden=True, intelligence_tier="frontier", provider="OpenAI"),
+    ModelRecord("grok-4-3", display_name="Grok 4.3", tier="premium", in_price=1.25, out_price=2.5, is_max_only=True, intelligence_tier="high", provider="xAI"),
     # ── API-pool per-token (req=0, isMax=false) ────────────────
     ModelRecord("gpt-5.3-codex", display_name="GPT-5.3 Codex", tier="premium", in_price=1.75, out_price=14.0, intelligence_tier="frontier", provider="OpenAI"),
 ]
